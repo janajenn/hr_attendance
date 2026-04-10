@@ -98,6 +98,9 @@ Route::post('/locations/{location}/deactivate', [\App\Http\Controllers\Hr\Locati
 
 Route::get('/employees/{user}/memo', [\App\Http\Controllers\Hr\EmployeeController::class, 'memo'])->name('employees.memo');
 
+Route::get('/locations/{location}/attendance/duplicates', [\App\Http\Controllers\Hr\LocationController::class, 'checkDuplicates'])->name('locations.attendance.duplicates');
+Route::delete('/locations/{location}/attendance/duplicates', [\App\Http\Controllers\Hr\LocationController::class, 'resolveDuplicates'])->name('locations.attendance.duplicates.resolve');
+
 
 
 Route::resource('hr-users', \App\Http\Controllers\Hr\HrUserController::class)

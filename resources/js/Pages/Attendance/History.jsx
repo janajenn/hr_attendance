@@ -69,13 +69,13 @@ export default function History({ records, locations, filters }) {
                                 </div>
                                 <h1 className="text-lg font-semibold tracking-tight">Attendance History</h1>
                             </div>
-                            <button
-                                onClick={() => window.history.back()}
-                                className="inline-flex items-center px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition"
-                            >
-                                <ArrowLeftIcon className="h-4 w-4 mr-1.5" />
-                                <span>Back</span>
-                            </button>
+                            <Link
+    href={route('attendance.create')}
+    className="inline-flex items-center px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition"
+>
+    <ArrowLeftIcon className="h-4 w-4 mr-1.5" />
+    <span>Back to Scanner</span>
+</Link>
                         </div>
                     </div>
                 </header>
@@ -129,11 +129,17 @@ export default function History({ records, locations, filters }) {
                     </div>
 
                     {items.length === 0 ? (
-                        <div className="text-center py-16 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10">
-                            <CalendarIcon className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-                            <p className="text-gray-400 text-lg">No attendance records yet.</p>
-                        </div>
-                    ) : (
+    <div className="text-center py-8 sm:py-16 px-4 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10">
+        <CalendarIcon className="h-12 w-12 sm:h-16 sm:w-16 text-gray-500 mx-auto mb-3 sm:mb-4" />
+        <p className="text-base sm:text-lg text-gray-400">No attendance records yet.</p>
+        <div className="mt-4 bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 sm:p-4 max-w-full sm:max-w-md mx-auto">
+            <p className="text-xs sm:text-sm text-blue-200 leading-relaxed">
+                <span className="font-semibold">📌 Note:</span> If you just scanned a QR code, your record may take up to 1 minute to appear here.
+                Please wait a moment and refresh the page. Do not scan again.
+            </p>
+        </div>
+    </div>
+) : (
                         <>
                             <div className="space-y-4">
                                 {items.map((record) => (

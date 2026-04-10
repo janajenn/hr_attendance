@@ -236,24 +236,19 @@ public function attendance(Request $request, Location $location)
         $intervalStart = $interval['start'];
         $intervalEnd = $interval['end'];
 
-        // If interval ends before the day, skip
         if ($intervalEnd !== null && $intervalEnd < $startOfDay) {
             continue;
         }
-        // If interval starts after the day, break (since intervals are ordered)
         if ($intervalStart > $endOfDay) {
             break;
         }
-        // Overlap found
         $activeOnDate = true;
-        // Activation time: if interval started before the day, use start of day, else use interval start
         $activation = ($intervalStart < $startOfDay) ? $startOfDay : $intervalStart;
-        // Deactivation time: if interval ended after the day or is null, use null (still active at end of day), else use interval end
         $deactivation = ($intervalEnd === null || $intervalEnd > $endOfDay) ? null : $intervalEnd;
-        break; // only first overlapping interval matters for a single location per day (since only one can be active at a time)
+        break;
     }
 
-    // Attendance records for this date (now stored in Asia/Manila)
+    // Attendance records for this date (stored in Asia/Manila)
     $records = AttendanceRecord::with(['user.department'])
         ->where('location_id', $location->id)
         ->whereDate('attendance_timestamp', $date)
@@ -264,9 +259,22 @@ public function attendance(Request $request, Location $location)
     });
 
     $employees = User::where('role', 'employee')->orderBy('name')->get(['id', 'name', 'department_id']);
-
-    // Get IDs of employees who already attended
     $attendedIds = $records->pluck('user_id')->toArray();
+
+    // --- DUPLICATE DETECTION ---
+    $duplicates = [];
+    $hasDuplicates = false;
+    foreach ($records->groupBy('user_id') as $userId => $userRecords) {
+        if ($userRecords->count() > 1) {
+            $hasDuplicates = true;
+            $duplicates[] = [
+                'user_id' => $userId,
+                'user_name' => $userRecords->first()->user->name,
+                'count' => $userRecords->count(),
+            ];
+        }
+    }
+    // -------------------------
 
     return Inertia::render('HR/Locations/Attendance', [
         'location' => $location,
@@ -277,6 +285,8 @@ public function attendance(Request $request, Location $location)
         'activation' => $activation,
         'deactivation' => $deactivation,
         'active_on_date' => $activeOnDate,
+        'hasDuplicates' => $hasDuplicates,
+        'duplicatesSummary' => $duplicates,
     ]);
 }
 
@@ -498,5 +508,86 @@ public function deactivate(Location $location)
 
     return back()->with('success', "{$location->name} is now inactive.");
 }
+
+
+
+/**
+ * Check for duplicate attendance records for the selected date.
+ */
+public function checkDuplicates(Request $request, Location $location)
+{
+    $date = $request->query('date', Carbon::now('Asia/Manila')->toDateString());
+
+    // Get all attendance records for this location on the date, grouped by user
+    $records = AttendanceRecord::where('location_id', $location->id)
+        ->whereDate('attendance_timestamp', $date)
+        ->with('user')
+        ->get();
+
+    $duplicates = [];
+    foreach ($records->groupBy('user_id') as $userId => $userRecords) {
+        if ($userRecords->count() > 1) {
+            $duplicates[] = [
+                'user_id' => $userId,
+                'user_name' => $userRecords->first()->user->name,
+                'records' => $userRecords->map(function ($rec) {
+                    return [
+                        'id' => $rec->id,
+                        'timestamp' => $rec->attendance_timestamp->timezone('Asia/Manila')->format('Y-m-d H:i:s'),
+                        'status' => $rec->status,
+                    ];
+                })->values(),
+            ];
+        }
+    }
+
+    return response()->json([
+        'date' => $date,
+        'has_duplicates' => count($duplicates) > 0,
+        'duplicates' => $duplicates,
+    ]);
+}
+
+/**
+ * Resolve duplicates by deleting all but one record per employee.
+ * Expects an array of record IDs to keep.
+ */
+public function resolveDuplicates(Request $request, Location $location)
+{
+    $request->validate([
+        'keep_ids_map' => 'required|array', // expects { user_id: record_id, ... }
+    ]);
+
+    $keepIdsMap = $request->input('keep_ids_map', []);
+    $date = $request->query('date', Carbon::now('Asia/Manila')->toDateString());
+
+    // Get all records for this location/date
+    $records = AttendanceRecord::where('location_id', $location->id)
+        ->whereDate('attendance_timestamp', $date)
+        ->get();
+
+    // Group by user_id
+    $groups = $records->groupBy('user_id');
+
+    foreach ($groups as $userId => $userRecords) {
+        if ($userRecords->count() > 1) {
+            // Duplicate group: keep only the selected record
+            $keepId = $keepIdsMap[$userId] ?? null;
+            if ($keepId && $userRecords->contains('id', $keepId)) {
+                // Delete all other records in this group
+                $userRecords->where('id', '!=', $keepId)->each->delete();
+            } else {
+                // Fallback: keep the first record
+                $firstId = $userRecords->first()->id;
+                $userRecords->where('id', '!=', $firstId)->each->delete();
+            }
+        }
+        // Groups with only one record are left untouched
+    }
+
+    return redirect()->back()->with('success', 'Duplicate records removed successfully.');
+}
+
+
 
 }
