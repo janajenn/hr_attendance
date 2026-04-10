@@ -255,7 +255,7 @@ export default function ActivityReport({ report }) {
                             )}
                         </div>
                         <div className="bg-gray-900/50 px-6 py-3 border-t border-white/10 text-xs text-gray-400 flex justify-end">
-                            Total: {selectedDay.locations.length} active {selectedDay.locations.length === 1 ? 'location' : 'locations'}
+                            Total : {selectedDay.locations.length} active {selectedDay.locations.length === 1 ? 'location' : 'locations'}
                         </div>
                     </div>
                 </div>
