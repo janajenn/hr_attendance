@@ -325,7 +325,7 @@ public function manualAttendance(Request $request, Location $location)
         'status' => $request->status,
     ]);
 
-    return redirect()->back()->with('success', 'Manual attendance added.');
+    return redirect()->back()->with('success', 'Manual Attendance added.');
 }
 
 
