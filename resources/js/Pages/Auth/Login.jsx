@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import Checkbox from '@/Components/Checkbox';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -5,7 +6,8 @@ import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import AuthLayout from '@/Layouts/AuthLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import WelcomeMap from '@/Components/WelcomeMap'; // Import the map component
+import WelcomeMap from '@/Components/WelcomeMap';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 export default function Login({ status, canResetPassword }) {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -13,6 +15,7 @@ export default function Login({ status, canResetPassword }) {
         password: '',
         remember: false,
     });
+    const [showPassword, setShowPassword] = useState(false);
 
     const submit = (e) => {
         e.preventDefault();
@@ -25,20 +28,14 @@ export default function Login({ status, canResetPassword }) {
         <AuthLayout>
             <Head title="Log in" />
 
-            {/* Map background covering full view */}
+            {/* Map background */}
             <div className="fixed inset-0 -z-10">
                 <WelcomeMap />
             </div>
 
             <div className="relative min-h-screen flex items-center justify-center px-4 py-12 sm:px-6 lg:px-8">
                 <div className="max-w-md w-full space-y-8">
-                    Logo / Header
                     <div className="text-center">
-                        {/* <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-green-600 to-green-800 flex items-center justify-center">
-                            <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                            </svg>
-                        </div> */}
                         <h2 className="mt-6 text-3xl font-extrabold text-white">Welcome Back</h2>
                         <p className="mt-2 text-sm text-gray-400">Sign in with your username</p>
                     </div>
@@ -69,15 +66,28 @@ export default function Login({ status, canResetPassword }) {
 
                             <div>
                                 <InputLabel htmlFor="password" value="Password" className="text-white" />
-                                <TextInput
-                                    id="password"
-                                    type="password"
-                                    name="password"
-                                    value={data.password}
-                                    className="mt-1 block w-full bg-gray-800/50 border-gray-700 text-white placeholder-gray-500 focus:border-green-500 focus:ring-green-500"
-                                    autoComplete="current-password"
-                                    onChange={(e) => setData('password', e.target.value)}
-                                />
+                                <div className="relative mt-1">
+                                    <TextInput
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        name="password"
+                                        value={data.password}
+                                        className="block w-full bg-gray-800/50 border-gray-700 text-white placeholder-gray-500 focus:border-green-500 focus:ring-green-500 pr-10"
+                                        autoComplete="current-password"
+                                        onChange={(e) => setData('password', e.target.value)}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-white transition"
+                                    >
+                                        {showPassword ? (
+                                            <EyeSlashIcon className="h-5 w-5" />
+                                        ) : (
+                                            <EyeIcon className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
                                 <InputError message={errors.password} className="mt-2 text-red-400" />
                             </div>
 
@@ -114,7 +124,6 @@ export default function Login({ status, canResetPassword }) {
                         </form>
                     </div>
 
-                    {/* Footer */}
                     <p className="text-center text-xs text-gray-500">
                         Protected by LGU Opol Attendance System
                     </p>

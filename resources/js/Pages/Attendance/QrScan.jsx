@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { MapContainer, TileLayer, Circle, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import {
@@ -20,17 +20,67 @@ L.Icon.Default.mergeOptions({
     shadowUrl: 'https://unpkg.com/leaflet@1.7.1/dist/images/marker-shadow.png',
 });
 
-// Custom pulsing dot marker for user location
-const createUserIcon = () => {
+// Modern person icon – no circle, just the person silhouette
+const createPersonIcon = () => {
     return L.divIcon({
-        className: 'custom-user-marker',
-        html: `<div class="relative">
-                <div class="w-4 h-4 bg-blue-500 rounded-full animate-ping absolute"></div>
-                <div class="w-4 h-4 bg-blue-600 rounded-full relative"></div>
-               </div>`,
-        iconSize: [16, 16],
-        iconAnchor: [8, 8],
+        className: 'custom-person-marker',
+        html: `<div class="flex items-center justify-center w-5 h-5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-blue-400 drop-shadow-md" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                </div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10],
+        popupAnchor: [0, -10],
     });
+};
+
+// Custom Leaflet control for the info box
+const MapInfoControl = () => {
+    const map = useMap();
+    useEffect(() => {
+        const controlDiv = L.DomUtil.create('div', 'info-control');
+        controlDiv.innerHTML = `
+            <div class="flex items-center gap-3 bg-black/60 backdrop-blur-md rounded-lg px-3 py-2 text-xs text-white shadow-lg pointer-events-none">
+                <div class="flex items-center gap-1">
+                    <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                    <span>Allowed area</span>
+                </div>
+                <div class="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span>Your location</span>
+                </div>
+            </div>
+        `;
+        const control = L.control({ position: 'topright' });
+        control.onAdd = () => controlDiv;
+        control.addTo(map);
+        return () => control.remove();
+    }, [map]);
+    return null;
+};
+
+// Custom control for the re‑center button
+const RecenterControl = ({ onRecenter }) => {
+    const map = useMap();
+    useEffect(() => {
+        const btn = L.DomUtil.create('button', 'recenter-btn');
+        btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" /><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" /></svg>`;
+        btn.className = 'bg-black/60 backdrop-blur-md rounded-full p-2 border border-white/20 hover:bg-black/80 transition cursor-pointer';
+        btn.style.width = '36px';
+        btn.style.height = '36px';
+        btn.style.display = 'flex';
+        btn.style.alignItems = 'center';
+        btn.style.justifyContent = 'center';
+        btn.onclick = () => onRecenter();
+        const control = L.control({ position: 'topright' });
+        control.onAdd = () => btn;
+        control.addTo(map);
+        return () => control.remove();
+    }, [map, onRecenter]);
+    return null;
 };
 
 export default function QrScan({ location, token, canTakeAttendance }) {
@@ -43,20 +93,14 @@ export default function QrScan({ location, token, canTakeAttendance }) {
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
     const mapRef = useRef(null);
-    const submissionAttempted = useRef(false); // prevents double submission
+    const submissionAttempted = useRef(false);
 
-    // Check if already succeeded from flash
     useEffect(() => {
-        if (flash?.success) {
-            setSubmitted(true);
-        }
+        if (flash?.success) setSubmitted(true);
     }, [flash]);
 
-    // Display server-side errors (e.g., duplicate)
     useEffect(() => {
-        if (errors?.location) {
-            setLocationError(errors.location);
-        }
+        if (errors?.location) setLocationError(errors.location);
     }, [errors]);
 
     const handleLogout = (e) => {
@@ -64,10 +108,8 @@ export default function QrScan({ location, token, canTakeAttendance }) {
         router.post(route('logout'));
     };
 
-    // Get a fresh location on mount (only if not already submitted and no errors)
     useEffect(() => {
         if (submitted || locationError) return;
-
         if (!navigator.geolocation) {
             setLocationError('Geolocation is not supported.');
             return;
@@ -84,7 +126,6 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                 setWithinRange(inside);
                 setLocationError(null);
                 setIsLocating(false);
-
                 if (inside && canTakeAttendance && !submitted && !submissionAttempted.current) {
                     submitAttendance(latitude, longitude);
                 }
@@ -107,14 +148,11 @@ export default function QrScan({ location, token, canTakeAttendance }) {
             client_timestamp: new Date().toISOString(),
         }, {
             forceFormData: true,
-            onSuccess: () => {
-                setSubmitting(false);
-                // flash.success will set submitted to true on next render
-            },
+            onSuccess: () => setSubmitting(false),
             onError: (err) => {
                 setLocationError(err.location || 'An error occurred');
                 setSubmitting(false);
-                submissionAttempted.current = false; // allow retry
+                submissionAttempted.current = false;
             },
         });
     };
@@ -135,7 +173,6 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                 setWithinRange(inside);
                 setLocationError(null);
                 setIsLocating(false);
-
                 if (inside && canTakeAttendance && !submitted && !submissionAttempted.current) {
                     submitAttendance(latitude, longitude);
                 }
@@ -152,10 +189,9 @@ export default function QrScan({ location, token, canTakeAttendance }) {
         const R = 6371000;
         const dLat = (lat2 - lat1) * Math.PI / 180;
         const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a =
-            Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon / 2) * Math.sin(dLon / 2);
+        const a = Math.sin(dLat / 2) ** 2 +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon / 2) ** 2;
         const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
         return R * c;
     };
@@ -163,26 +199,28 @@ export default function QrScan({ location, token, canTakeAttendance }) {
     const distancePercent = distance ? Math.min(100, (distance / location.radius) * 100) : 0;
     const isInside = withinRange;
 
+    const handleRecenter = () => {
+        if (userPosition) {
+            mapRef.current?.setView([userPosition.lat, userPosition.lng], 18);
+        }
+    };
+
     return (
         <>
             <Head title="QR Attendance" />
             <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
-               <header className="bg-black/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-20">
-    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-16">
-            <div className="flex items-center space-x-2 sm:space-x-3">
-                <div className="bg-green-600 rounded-lg p-1.5">
-                    <MapPinIcon className="h-5 w-5 text-white" />
-                </div>
-                <div>
-                    <h1 className="text-base sm:text-lg font-semibold tracking-tight">
-                        QR Attendance
-                    </h1>
-                    <p className="text-xs text-gray-400 hidden sm:block">
-                        {location.name}
-                    </p>
-                </div>
-            </div>
+                <header className="bg-black/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-20">
+                    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+                        <div className="flex items-center justify-between h-14 sm:h-16">
+                            <div className="flex items-center space-x-2 sm:space-x-3">
+                                <div className="bg-green-600 rounded-lg p-1.5">
+                                    <MapPinIcon className="h-5 w-5 text-white" />
+                                </div>
+                                <div>
+                                    <h1 className="text-base sm:text-lg font-semibold tracking-tight">QR Attendance</h1>
+                                    <p className="text-xs text-gray-400 hidden sm:block">{location.name}</p>
+                                </div>
+                            </div>
                             <div className="flex items-center space-x-2 sm:space-x-4">
                                 <Link
                                     href={route('attendance.history')}
@@ -208,9 +246,14 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                         <div className="bg-green-500/20 border border-green-500/50 rounded-2xl p-6 sm:p-8 text-center">
                             <CheckCircleIcon className="h-16 w-16 sm:h-20 sm:w-20 text-green-400 mx-auto mb-4" />
                             <h2 className="text-xl sm:text-2xl font-bold mb-2">Attendance Recorded!</h2>
-                            <p className="text-sm sm:text-base text-green-200 mb-6">
-                                Your attendance has been successfully recorded. You can now view your history or scan another QR code.
+                            <p className="text-sm sm:text-base text-green-200 mb-4">
+                                Your attendance has been successfully submitted.
                             </p>
+                            <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 mb-6 text-left">
+                                <p className="text-xs text-blue-200">
+                                    <span className="font-semibold">📌 Note:</span> Your record may take up to 1 minute to appear in your history. This is because we process attendance in the background to keep the system fast. No need to rescan – your attendance is already saved.
+                                </p>
+                            </div>
                             <div className="flex flex-col sm:flex-row gap-3 justify-center">
                                 <Link
                                     href={route('attendance.history')}
@@ -229,7 +272,7 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                     ) : (
                         <>
                             <div className="bg-white/5 backdrop-blur-lg rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-                                <div className="h-48 xs:h-56 sm:h-64 md:h-80 w-full relative">
+                                <div className="h-48 xs:h-56 sm:h-64 md:h-80 w-full">
                                     <MapContainer
                                         center={[location.latitude, location.longitude]}
                                         zoom={18}
@@ -254,36 +297,21 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                                                     radius={userPosition.accuracy}
                                                     pathOptions={{ color: '#340be9', fillColor: '#1111e9', fillOpacity: 0.1, weight: 1, dashArray: '5' }}
                                                 />
-                                                <Marker position={[userPosition.lat, userPosition.lng]} icon={createUserIcon()} />
+                                                <Marker position={[userPosition.lat, userPosition.lng]} icon={createPersonIcon()} />
                                             </>
                                         )}
+                                        <MapInfoControl />
+                                        <RecenterControl onRecenter={handleRecenter} />
                                     </MapContainer>
-
-                                    {userPosition && (
-                                        <button
-                                            onClick={() => {
-                                                mapRef.current?.setView([userPosition.lat, userPosition.lng], 18);
-                                            }}
-                                            className="absolute top-2 right-2 z-10 bg-black/60 backdrop-blur-md rounded-full p-2 border border-white/20 hover:bg-black/80 transition"
-                                            title="Re-center to your location"
-                                        >
-                                            <MapPinIcon className="h-5 w-5 text-blue-400" />
-                                        </button>
-                                    )}
                                 </div>
                             </div>
 
-                            <div className={`p-3 sm:p-4 rounded-2xl backdrop-blur-lg border transition-all duration-500 ${
-                                isInside && !submitting
-                                    ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/20'
-                                    : 'bg-red-500/20 border-red-500/50 shadow-lg shadow-red-500/20'
-                            }`}>
+                            {/* Status card and other sections unchanged */}
+                            <div className={`p-3 sm:p-4 rounded-2xl backdrop-blur-lg border transition-all duration-500 ${isInside && !submitting ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/20' : 'bg-red-500/20 border-red-500/50 shadow-lg shadow-red-500/20'}`}>
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
                                         <div className={`w-3 h-3 rounded-full ${isInside ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
-                                        <span className="text-sm sm:text-base font-medium">
-                                            {isInside ? 'Inside allowed zone' : 'Outside allowed zone'}
-                                        </span>
+                                        <span className="text-sm sm:text-base font-medium">{isInside ? 'Inside allowed zone' : 'Outside allowed zone'}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {userPosition && (
@@ -302,7 +330,6 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                                         </button>
                                     </div>
                                 </div>
-
                                 {userPosition && (
                                     <div className="mt-3">
                                         <div className="flex justify-between text-xs text-white/70 mb-1">
@@ -310,12 +337,7 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                                             <span>{distance?.toFixed(1)}m / {location.radius}m</span>
                                         </div>
                                         <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                            <div
-                                                className={`h-full transition-all duration-500 ${
-                                                    isInside ? 'bg-green-400' : 'bg-red-400'
-                                                }`}
-                                                style={{ width: `${distancePercent}%` }}
-                                            />
+                                            <div className={`h-full transition-all duration-500 ${isInside ? 'bg-green-400' : 'bg-red-400'}`} style={{ width: `${distancePercent}%` }} />
                                         </div>
                                     </div>
                                 )}

@@ -81,6 +81,21 @@ export default function History({ records, locations, filters }) {
                 </header>
 
                 <main className="max-w-4xl mx-auto px-4 py-6">
+
+                    {/* Queue Info Card */}
+<div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 mb-4">
+    <div className="flex items-start gap-3">
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <div className="text-sm text-blue-200">
+            <p className="font-semibold">About attendance records</p>
+            <p>When you submit your attendance, it may take up to 1 minute to appear in your history. This is because we process records in the background to keep the system fast and reliable. No need to resubmit – your attendance will be saved automatically.</p>
+        </div>
+    </div>
+</div>
+
+
                     {/* Filter Section */}
                     <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 mb-6">
                         <div className="flex items-center justify-between mb-3">
