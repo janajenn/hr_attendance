@@ -589,5 +589,18 @@ public function resolveDuplicates(Request $request, Location $location)
 }
 
 
+/**
+ * Get distinct dates with attendance record counts for a location
+ */
+public function attendanceDates(Location $location)
+{
+    $records = AttendanceRecord::where('location_id', $location->id)
+        ->selectRaw('DATE(CONVERT_TZ(attendance_timestamp, "+00:00", "+08:00")) as date, count(*) as total')
+        ->groupBy('date')
+        ->orderBy('date', 'desc')
+        ->get();
+
+    return response()->json($records);
+}
 
 }

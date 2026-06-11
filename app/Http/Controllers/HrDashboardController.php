@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\DB;
 use App\Models\LocationActivityLog; // added
+use Carbon\CarbonPeriod;
 use Carbon\Carbon;
 
 class HrDashboardController extends Controller
@@ -276,5 +277,176 @@ public function export(Request $request)
     ]);
 }
 
+
+/**
+ * Employee attendance overview (no date range)
+ */
+public function employeeOverview()
+{
+    // 1. Compute total active location-days (since first log)
+    $firstLog = LocationActivityLog::orderBy('changed_at')->first();
+    $start = $firstLog ? $firstLog->changed_at->copy()->startOfDay() : Carbon::now('Asia/Manila')->startOfMonth();
+    $end = Carbon::now('Asia/Manila')->endOfDay();
+
+    $totalActiveDays = $this->getTotalActiveLocationDays($start, $end); // use your existing method
+
+    // 2. All employees
+    $employees = User::where('role', 'employee')->with('department')->get();
+
+    // 3. Attendance counts per employee
+    $attendanceCounts = AttendanceRecord::whereBetween('attendance_timestamp', [$start, $end])
+        ->select('user_id', DB::raw('count(*) as total'))
+        ->groupBy('user_id')
+        ->get()
+        ->keyBy('user_id');
+
+    $overview = [];
+    foreach ($employees as $emp) {
+        $attended = $attendanceCounts[$emp->id]->total ?? 0;
+        $percentage = $totalActiveDays > 0 ? round(($attended / $totalActiveDays) * 100, 1) : 0;
+        $overview[] = [
+            'id' => $emp->id,
+            'name' => $emp->name,
+            'department' => $emp->department->name ?? 'No Department',
+            'attended' => $attended,
+            'total_active_days' => $totalActiveDays,
+            'percentage' => $percentage,
+        ];
+    }
+
+    return Inertia::render('HR/EmployeeAttendanceOverview', [
+        'overview' => $overview,
+    ]);
+}
+
+/**
+ * Get detailed attendance records for a specific employee
+ */
+public function employeeAttendanceDetails($userId)
+{
+    $user = User::findOrFail($userId);
+    $records = AttendanceRecord::with('location')
+        ->where('user_id', $userId)
+        ->orderBy('attendance_timestamp', 'desc')
+        ->get();
+
+    $details = [];
+    foreach ($records as $record) {
+        // Get the activation start time for that location on that day
+        $date = $record->attendance_timestamp->toDateString();
+        $logs = LocationActivityLog::where('location_id', $record->location_id)
+            ->where('changed_at', '<=', $record->attendance_timestamp)
+            ->where('is_active', 1)
+            ->orderBy('changed_at', 'desc')
+            ->first();
+        $activityStartTime = $logs ? $logs->changed_at->format('Y-m-d H:i:s') : null;
+
+        $details[] = [
+            'location_name' => $record->location->name,
+            'check_in_time' => $record->attendance_timestamp->format('Y-m-d H:i:s'),
+            'activity_start_time' => $activityStartTime,
+        ];
+    }
+
+    return response()->json($details);
+}
+
+
+private function getTotalActiveLocationDays($start, $end)
+{
+    $logs = LocationActivityLog::where('changed_at', '<=', $end)
+        ->orderBy('location_id')
+        ->orderBy('changed_at')
+        ->get();
+
+    $intervals = [];
+    foreach ($logs->groupBy('location_id') as $locId => $locLogs) {
+        $activeFrom = null;
+        foreach ($locLogs as $log) {
+            $logTime = $log->changed_at->timezone('Asia/Manila');
+            if ($log->is_active && $activeFrom === null) {
+                $activeFrom = $logTime;
+            } elseif (!$log->is_active && $activeFrom !== null) {
+                $intervals[] = ['start' => $activeFrom, 'end' => $logTime];
+                $activeFrom = null;
+            }
+        }
+        if ($activeFrom !== null) {
+            $intervals[] = ['start' => $activeFrom, 'end' => $end];
+        }
+    }
+
+    $totalDays = 0;
+    $period = CarbonPeriod::create($start, $end);
+    foreach ($period as $date) {
+        $dayStart = $date->copy()->startOfDay();
+        $dayEnd = $date->copy()->endOfDay();
+        foreach ($intervals as $interval) {
+            if ($interval['start'] <= $dayEnd && ($interval['end'] === null || $interval['end'] >= $dayStart)) {
+                $totalDays++;
+            }
+        }
+    }
+    return $totalDays;
+}
+
+
+
+/**
+ * Show detailed attendance records for a specific employee.
+ */
+public function showEmployeeAttendance($userId)
+{
+    $employee = User::where('role', 'employee')->with('department')->findOrFail($userId);
+
+    // Total active location-days (same as in overview)
+    $firstLog = LocationActivityLog::orderBy('changed_at')->first();
+    $start = $firstLog ? $firstLog->changed_at->copy()->startOfDay() : Carbon::now('Asia/Manila')->startOfMonth();
+    $end = Carbon::now('Asia/Manila')->endOfDay();
+    $totalActiveDays = $this->getTotalActiveLocationDays($start, $end);
+
+    // Employee attendance count
+    $attendedCount = AttendanceRecord::where('user_id', $employee->id)
+        ->whereBetween('attendance_timestamp', [$start, $end])
+        ->count();
+
+    $percentage = $totalActiveDays > 0 ? round(($attendedCount / $totalActiveDays) * 100, 1) : 0;
+
+    // Detailed records
+    $records = AttendanceRecord::with('location')
+        ->where('user_id', $employee->id)
+        ->orderBy('attendance_timestamp', 'desc')
+        ->get();
+
+    $details = [];
+    foreach ($records as $record) {
+        // Get activity start time (activation log for that location before check‑in)
+        $logs = LocationActivityLog::where('location_id', $record->location_id)
+            ->where('changed_at', '<=', $record->attendance_timestamp)
+            ->where('is_active', 1)
+            ->orderBy('changed_at', 'desc')
+            ->first();
+        $activityStartTime = $logs ? $logs->changed_at->format('Y-m-d H:i:s') : null;
+
+        $details[] = [
+            'location_name' => $record->location->name,
+            'check_in_time' => $record->attendance_timestamp->format('Y-m-d H:i:s'),
+            'activity_start_time' => $activityStartTime,
+            'status' => $record->status,
+        ];
+    }
+
+    return Inertia::render('HR/EmployeeAttendanceDetails', [
+        'employee' => [
+            'id' => $employee->id,
+            'name' => $employee->name,
+            'department' => $employee->department->name ?? 'No Department',
+            'attended' => $attendedCount,
+            'total_active_days' => $totalActiveDays,
+            'percentage' => $percentage,
+        ],
+        'details' => $details,
+    ]);
+}
 
 }

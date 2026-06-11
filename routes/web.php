@@ -7,6 +7,7 @@ use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\HrDashboardController;
 use App\Http\Controllers\Hr\EmployeeController;
 use BaconQrCode\Renderer\ImageRenderer;
+use App\Http\Controllers\Auth\PasswordChangeController;
 use BaconQrCode\Renderer\RendererStyle\RendererStyle;
 use BaconQrCode\Renderer\Image\GdImageBackEnd;
 use BaconQrCode\Writer;// only needed for QR route
@@ -30,14 +31,22 @@ Route::get('/', function () {
 
 
 Route::middleware(['auth'])->group(function () {
-    // Employee routes
-    Route::middleware(['auth', 'employee'])->group(function () {
-        Route::get('/attendance', [AttendanceController::class, 'create'])->name('attendance.create');
-        Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
-        Route::get('/attendance/history', [AttendanceController::class, 'history'])->name('attendance.history');
 
-        Route::get('/scan/{token}', [AttendanceController::class, 'scan'])->name('attendance.scan');
-        Route::post('/attendance/qr', [AttendanceController::class, 'storeFromQr'])->name('attendance.qr.store');
+    // Password change (accessible even when must_change_password = true)
+    Route::get('/change-password', [PasswordChangeController::class, 'showForm'])->name('password.change');
+    Route::post('/change-password', [PasswordChangeController::class, 'update'])->name('password.update');
+
+
+     Route::middleware(['password.changed'])->group(function () {
+
+        // Employee routes
+        Route::middleware(['employee'])->group(function () {
+            Route::get('/attendance', [AttendanceController::class, 'create'])->name('attendance.create');
+            Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+            Route::get('/attendance/history', [AttendanceController::class, 'history'])->name('attendance.history');
+            Route::get('/scan/{token}', [AttendanceController::class, 'scan'])->name('attendance.scan');
+            Route::post('/attendance/qr', [AttendanceController::class, 'storeFromQr'])->name('attendance.qr.store');
+        });
     });
 
     // HR routes
@@ -50,6 +59,10 @@ Route::middleware(['auth'])->group(function () {
             ->name('employees.reset-password');
 
             Route::get('/locations/{location}/attendance', [\App\Http\Controllers\Hr\LocationController::class, 'attendance'])->name('locations.attendance');
+
+             Route::get('/employee-attendance-overview', [HrDashboardController::class, 'employeeOverview'])->name('employee.attendance.overview');
+    Route::get('/employee-attendance-details/{user}', [HrDashboardController::class, 'employeeAttendanceDetails'])->name('employee.attendance.details');
+Route::get('/employee-attendance/{user}', [HrDashboardController::class, 'showEmployeeAttendance'])->name('employee.attendance.show');
 
 Route::get('/qr/{token}', function ($token) {
     try {

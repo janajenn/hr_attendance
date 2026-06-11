@@ -13,6 +13,8 @@ import {
     XMarkIcon,
     MagnifyingGlassIcon,
     UserIcon,
+    ChevronDownIcon,
+    ChevronRightIcon,
 } from '@heroicons/react/24/outline';
 
 export default function Attendance({
@@ -29,6 +31,9 @@ export default function Attendance({
 }) {
     const { flash } = usePage().props;
     const [selectedDate, setSelectedDate] = useState(date);
+    const [datesWithRecords, setDatesWithRecords] = useState([]);
+    const [loadingDates, setLoadingDates] = useState(false);
+    const [employeeSearch, setEmployeeSearch] = useState('');
     const [showManualModal, setShowManualModal] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedEmployeeId, setSelectedEmployeeId] = useState(null);
@@ -50,7 +55,7 @@ export default function Attendance({
         attendance_timestamp: '',
     });
 
-    // Auto-notify about duplicates on page load
+    // Auto-notify duplicates
     useEffect(() => {
         if (hasDuplicates && duplicatesSummary.length > 0) {
             let message = '';
@@ -70,6 +75,23 @@ export default function Attendance({
             });
         }
     }, [hasDuplicates, duplicatesSummary]);
+
+    // Fetch dates with records (grouped by month)
+    useEffect(() => {
+        const fetchDates = async () => {
+            setLoadingDates(true);
+            try {
+                const response = await fetch(`/hr/locations/${location.id}/attendance/dates`);
+                const data = await response.json();
+                setDatesWithRecords(data);
+            } catch (error) {
+                console.error(error);
+            } finally {
+                setLoadingDates(false);
+            }
+        };
+        fetchDates();
+    }, [location.id]);
 
     const availableEmployees = employees.filter(emp => !attendedIds.includes(emp.id));
     const filteredEmployees = availableEmployees.filter(emp =>
@@ -183,57 +205,88 @@ export default function Attendance({
     };
 
     const resolveDuplicates = () => {
-    const keepIdsMap = selectedKeepIds; // object: { user_id: record_id, ... }
-    if (Object.keys(keepIdsMap).length === 0) return;
+        const keepIdsMap = selectedKeepIds;
+        if (Object.keys(keepIdsMap).length === 0) return;
 
-    const totalDuplicates = duplicatesData.duplicates.reduce((sum, d) => sum + d.records.length - 1, 0);
-    Swal.fire({
-        title: 'Remove Duplicates?',
-        text: `This will keep ${Object.keys(keepIdsMap).length} record(s) and delete ${totalDuplicates} duplicate(s).`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#d33',
-        cancelButtonColor: '#3085d6',
-        confirmButtonText: 'Yes, remove duplicates',
-        background: '#1f2937',
-        color: '#fff',
-    }).then((result) => {
-        if (result.isConfirmed) {
-            router.delete(route('hr.locations.attendance.duplicates.resolve', location.id), {
-                data: { keep_ids_map: keepIdsMap, date: selectedDate },
-                preserveScroll: true,
-                onSuccess: () => {
-                    router.get(route('hr.locations.attendance', location.id), { date: selectedDate }, {
-                        preserveState: true,
-                        preserveScroll: true,
-                    });
-                    setShowDuplicatesModal(false);
-                    Swal.fire({
-                        title: 'Done!',
-                        text: 'Duplicate records have been removed.',
-                        icon: 'success',
-                        timer: 1500,
-                        showConfirmButton: false,
-                        background: '#1f2937',
-                        color: '#fff',
-                    });
-                },
-                onError: (err) => {
-                    console.error(err);
-                    Swal.fire({
-                        title: 'Error',
-                        text: 'Failed to remove duplicates.',
-                        icon: 'error',
-                        background: '#1f2937',
-                        color: '#fff',
-                    });
-                },
-            });
-        }
-    });
-};
+        const totalDuplicates = duplicatesData.duplicates.reduce((sum, d) => sum + d.records.length - 1, 0);
+        Swal.fire({
+            title: 'Remove Duplicates?',
+            text: `This will keep ${Object.keys(keepIdsMap).length} record(s) and delete ${totalDuplicates} duplicate(s).`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#3085d6',
+            confirmButtonText: 'Yes, remove duplicates',
+            background: '#1f2937',
+            color: '#fff',
+        }).then((result) => {
+            if (result.isConfirmed) {
+                router.delete(route('hr.locations.attendance.duplicates.resolve', location.id), {
+                    data: { keep_ids_map: keepIdsMap, date: selectedDate },
+                    preserveScroll: true,
+                    onSuccess: () => {
+                        router.get(route('hr.locations.attendance', location.id), { date: selectedDate }, {
+                            preserveState: true,
+                            preserveScroll: true,
+                        });
+                        setShowDuplicatesModal(false);
+                        Swal.fire({
+                            title: 'Done!',
+                            text: 'Duplicate records have been removed.',
+                            icon: 'success',
+                            timer: 1500,
+                            showConfirmButton: false,
+                            background: '#1f2937',
+                            color: '#fff',
+                        });
+                    },
+                    onError: (err) => {
+                        console.error(err);
+                        Swal.fire({
+                            title: 'Error',
+                            text: 'Failed to remove duplicates.',
+                            icon: 'error',
+                            background: '#1f2937',
+                            color: '#fff',
+                        });
+                    },
+                });
+            }
+        });
+    };
 
+    const selectDateFromList = (dateStr) => {
+        setSelectedDate(dateStr);
+        router.get(route('hr.locations.attendance', location.id), { date: dateStr }, {
+            preserveState: true,
+            preserveScroll: true,
+        });
+    };
 
+    // Format date for display
+    const formatDisplayDate = (dateStr) => {
+        const d = new Date(dateStr);
+        return d.toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' });
+    };
+
+    // Group dates by month
+    const groupedDates = datesWithRecords.reduce((groups, item) => {
+        const monthYear = new Date(item.date).toLocaleDateString('en-PH', { year: 'numeric', month: 'long' });
+        if (!groups[monthYear]) groups[monthYear] = [];
+        groups[monthYear].push(item);
+        return groups;
+    }, {});
+
+    // Filter employees in the current attendance list
+    const filteredRecords = Object.keys(grouped).length > 0
+        ? Object.entries(grouped).reduce((acc, [dept, records]) => {
+            const filtered = records.filter(record =>
+                record.user.name.toLowerCase().includes(employeeSearch.toLowerCase())
+            );
+            if (filtered.length > 0) acc[dept] = filtered;
+            return acc;
+        }, {})
+        : {};
 
     return (
         <HRLayout>
@@ -260,16 +313,32 @@ export default function Attendance({
                     </div>
                 )}
 
-                {/* Date filter bar */}
-                <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 mb-6">
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                        <div className="flex items-center">
-                            <CalendarIcon className="h-5 w-5 text-blue-400 mr-2" />
-                            <span className="text-lg text-gray-300 mr-2">Attendance for</span>
-                            <input type="date" value={selectedDate} onChange={handleDateChange} className="px-3 py-1.5 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                {/* Two‑column layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    {/* Left sidebar – Date picker & Dates with records */}
+                    <div className="lg:col-span-1 space-y-4">
+                        {/* Date picker card */}
+                        <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4">
+                            <div className="flex items-center gap-2 mb-2">
+                                <CalendarIcon className="h-5 w-5 text-blue-400" />
+                                <h3 className="text-sm font-semibold text-gray-300">Jump to date</h3>
+                            </div>
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={handleDateChange}
+                                className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                            <button onClick={goToToday} className="mt-2 w-full px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition">Today</button>
                         </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <button onClick={goToToday} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition">Today</button>
+
+
+                    </div>
+
+                    {/* Right content – Attendance records and actions */}
+                    <div className="lg:col-span-3 space-y-4">
+                        {/* Action buttons */}
+                        <div className="flex flex-wrap gap-2">
                             <button onClick={handleExport} className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition flex items-center gap-1"><DocumentArrowDownIcon className="h-4 w-4" /> Export CSV</button>
                             <button onClick={openManualModal} className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm transition flex items-center gap-1"><PlusIcon className="h-4 w-4" /> Manual Add</button>
                             <button onClick={fetchAbsentees} disabled={loadingAbsent} className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg text-sm transition flex items-center gap-1"><UserIcon className="h-4 w-4" /> {loadingAbsent ? 'Loading...' : 'View Absentees'}</button>
@@ -278,56 +347,76 @@ export default function Attendance({
                                 {loadingDuplicates ? 'Checking...' : 'Check Duplicates'}
                             </button>
                         </div>
-                    </div>
-                </div>
 
-                {/* Activity Log */}
-                <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-4 mb-6">
-                    <div className="flex items-center gap-2 mb-2"><ClockIcon className="h-5 w-5 text-green-400" /><h3 className="text-sm font-semibold text-gray-300">Activity Log for {new Date(date).toLocaleDateString('en-PH')}</h3></div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                        {active_on_date ? (
-                            <>
-                                <div><span className="text-gray-400">Activated:</span> <span className="ml-2 text-white">{activation ? new Date(activation).toLocaleString('en-PH', { hour: '2-digit', minute: '2-digit' }) : 'start of day'}</span></div>
-                                <div><span className="text-gray-400">Deactivated:</span> <span className="ml-2 text-white">{deactivation ? new Date(deactivation).toLocaleString('en-PH', { hour: '2-digit', minute: '2-digit' }) : 'still active'}</span></div>
-                            </>
+                        {/* Activity Log */}
+                        <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-4">
+                            <div className="flex items-center gap-2 mb-2"><ClockIcon className="h-5 w-5 text-green-400" /><h3 className="text-sm font-semibold text-gray-300">Activity Log for {new Date(selectedDate).toLocaleDateString('en-PH')}</h3></div>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                                {active_on_date ? (
+                                    <>
+                                        <div><span className="text-gray-400">Activated:</span> <span className="ml-2 text-white">{activation ? new Date(activation).toLocaleString('en-PH', { hour: '2-digit', minute: '2-digit' }) : 'start of day'}</span></div>
+                                        <div><span className="text-gray-400">Deactivated:</span> <span className="ml-2 text-white">{deactivation ? new Date(deactivation).toLocaleString('en-PH', { hour: '2-digit', minute: '2-digit' }) : 'still active'}</span></div>
+                                    </>
+                                ) : (
+                                    <div className="col-span-2"><span className="text-gray-400">Location was not active on this date.</span></div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Employee search filter */}
+                        <div className="relative">
+                            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                            <input
+                                type="text"
+                                placeholder="Search employee in this date..."
+                                value={employeeSearch}
+                                onChange={(e) => setEmployeeSearch(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+
+                        {/* Attendance list */}
+                        {Object.keys(grouped).length === 0 ? (
+                            <div className="text-center py-16 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10">
+                                <UserGroupIcon className="h-16 w-16 text-gray-500 mx-auto mb-4" />
+                                <p className="text-gray-400 text-lg">No attendance records for this date.</p>
+                            </div>
+                        ) : Object.keys(filteredRecords).length === 0 ? (
+                            <div className="text-center py-8 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10">
+                                <p className="text-gray-400">No employee matches your search.</p>
+                            </div>
                         ) : (
-                            <div className="col-span-2"><span className="text-gray-400">Location was not active on this date.</span></div>
+                            <div className="space-y-4">
+                                {Object.entries(filteredRecords).map(([department, records]) => (
+                                    <div key={department} className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 overflow-hidden">
+                                        <div className="bg-blue-600/20 px-4 py-2 border-b border-white/10">
+                                            <h2 className="text-lg font-semibold text-blue-300 flex items-center"><UserGroupIcon className="h-5 w-5 mr-2" />{department}<span className="ml-2 text-sm bg-blue-600/30 px-2 py-0.5 rounded-full">{records.length}</span></h2>
+                                        </div>
+                                        <div className="divide-y divide-white/10">
+                                            {records.map((record) => (
+                                                <div key={record.id} className="px-4 py-2 flex flex-col sm:flex-row sm:items-center sm:justify-between hover:bg-white/5">
+                                                    <div>
+                                                        <p className="text-white font-medium">{record.user.name}</p>
+                                                        <p className="text-sm text-gray-400">{record.user.email}</p>
+                                                    </div>
+                                                    <div className="flex items-center text-sm mt-1 sm:mt-0">
+                                                        <ClockIcon className="h-4 w-4 text-gray-400 mr-1" />
+                                                        <span className="text-gray-300">{new Date(record.attendance_timestamp).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}</span>
+                                                        <span className={`ml-3 px-2 py-0.5 rounded-full text-xs ${record.status === 'present' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}`}>{record.status}</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
-
-                {/* Attendance list */}
-                {Object.keys(grouped).length === 0 ? (
-                    <div className="text-center py-16 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10">
-                        <UserGroupIcon className="h-16 w-16 text-gray-500 mx-auto mb-4" />
-                        <p className="text-gray-400 text-lg">No attendance records for this date.</p>
-                    </div>
-                ) : (
-                    <div className="space-y-6">
-                        {Object.entries(grouped).map(([department, records]) => (
-                            <div key={department} className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 overflow-hidden">
-                                <div className="bg-blue-600/20 px-6 py-3 border-b border-white/10">
-                                    <h2 className="text-xl font-semibold text-blue-300 flex items-center"><UserGroupIcon className="h-5 w-5 mr-2" />{department}<span className="ml-2 text-sm bg-blue-600/30 px-2 py-0.5 rounded-full">{records.length}</span></h2>
-                                </div>
-                                <div className="divide-y divide-white/10">
-                                    {records.map((record) => (
-                                        <div key={record.id} className="px-6 py-3 flex items-center justify-between hover:bg-white/5">
-                                            <div><p className="text-white font-medium">{record.user.name}</p><p className="text-sm text-gray-400">{record.user.email}</p></div>
-                                            <div className="flex items-center text-sm">
-                                                <ClockIcon className="h-4 w-4 text-gray-400 mr-1" />
-                                                <span className="text-gray-300">{new Date(record.attendance_timestamp).toLocaleTimeString('en-PH', { hour: '2-digit', minute: '2-digit' })}</span>
-                                                <span className={`ml-3 px-2 py-0.5 rounded-full text-xs ${record.status === 'present' ? 'bg-green-500/20 text-green-300' : 'bg-yellow-500/20 text-yellow-300'}`}>{record.status}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
             </div>
 
-            {/* Modal for manual attendance (same as before) */}
+
+            {/* Modal for manual attendance */}
             {showManualModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">
                     <div className="relative bg-gray-800 rounded-xl border border-white/10 p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">

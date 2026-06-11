@@ -28,6 +28,7 @@ class User extends Authenticatable
     'photo',
     'role',
     'birthdate', // added birthdate
+    'must_change_password',
 ];
 
 

@@ -104,22 +104,7 @@ export default function Create({ departments }) {
                                 {errors.username && <p className="mt-1 text-sm text-red-400">{errors.username}</p>}
                             </div>
 
-                            {/* Birthdate */}
-                            <div>
-                                <label htmlFor="birthdate" className="block text-sm font-medium text-gray-300 mb-1">
-                                    Birthdate <span className="text-green-400">*</span>
-                                </label>
-                                <input
-                                    id="birthdate"
-                                    type="date"
-                                    value={data.birthdate}
-                                    onChange={e => setData('birthdate', e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                                    required
-                                />
-                                <p className="mt-1 text-xs text-gray-400">Initial password (YYYY-MM-DD)</p>
-                                {errors.birthdate && <p className="mt-1 text-sm text-red-400">{errors.birthdate}</p>}
-                            </div>
+
 
                             {/* Photo Upload - spans full width on md */}
                             <div className="md:col-span-2">

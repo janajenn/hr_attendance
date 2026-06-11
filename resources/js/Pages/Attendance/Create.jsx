@@ -7,6 +7,7 @@ import {
     CameraIcon,
     XCircleIcon,
     InformationCircleIcon,
+    KeyIcon,
 } from '@heroicons/react/24/outline';
 
 export default function Create() {
@@ -59,30 +60,30 @@ export default function Create() {
     }, []);
 
     const tick = () => {
-    if (!videoRef.current || !scanning) return;
+        if (!videoRef.current || !scanning) return;
 
-    if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.width = videoRef.current.videoWidth;
-        canvas.height = videoRef.current.videoHeight;
-        ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const code = jsQR(imageData.data, canvas.width, canvas.height);
+        if (videoRef.current.readyState === videoRef.current.HAVE_ENOUGH_DATA) {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            canvas.width = videoRef.current.videoWidth;
+            canvas.height = videoRef.current.videoHeight;
+            ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, canvas.width, canvas.height);
 
-        if (code && code.data && code.data.trim() !== '') {
-            setScanning(false);
-            try {
-                const url = new URL(code.data);
-                router.visit(url.pathname);
-            } catch {
-                router.visit(route('attendance.scan', code.data));
+            if (code && code.data && code.data.trim() !== '') {
+                setScanning(false);
+                try {
+                    const url = new URL(code.data);
+                    router.visit(url.pathname);
+                } catch {
+                    router.visit(route('attendance.scan', code.data));
+                }
+                return;
             }
-            return;
         }
-    }
-    requestAnimationFrame(tick);
-};
+        requestAnimationFrame(tick);
+    };
 
     const formattedTime = currentTime.toLocaleString('en-PH', {
         timeZone: 'Asia/Manila',
@@ -102,29 +103,49 @@ export default function Create() {
         <>
             <Head title="Scan QR Code" />
             <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
-                {/* Header */}
+                {/* Responsive Header */}
                 <header className="bg-black/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-20">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <div className="flex items-center justify-between h-16">
-                            <div className="flex items-center space-x-3">
+                    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+                        <div className="flex flex-wrap items-center justify-between gap-2 py-2 sm:py-0 sm:h-16">
+                            {/* Logo & Title */}
+                            <div className="flex items-center space-x-2 sm:space-x-3">
                                 <div className="bg-green-600 rounded-lg p-1.5">
                                     <CameraIcon className="h-5 w-5 text-white" />
                                 </div>
-                                <h1 className="text-lg font-semibold tracking-tight">Scan Attendance QR</h1>
+                                <h1 className="text-base sm:text-lg font-semibold tracking-tight whitespace-nowrap">
+                                    Scan QR
+                                </h1>
                             </div>
-                            <div className="flex items-center space-x-2 sm:space-x-4">
+
+                            {/* Navigation Buttons */}
+                            <div className="flex items-center gap-1 sm:gap-2">
+                                {/* History Button */}
                                 <Link
                                     href={route('attendance.history')}
-                                    className="inline-flex items-center px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition"
+                                    className="inline-flex items-center px-2 py-1.5 sm:px-3 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition"
+                                    aria-label="Attendance History"
                                 >
-                                    <ClockIcon className="h-4 w-4 mr-1.5" />
+                                    <ClockIcon className="h-4 w-4 sm:mr-1.5" />
                                     <span className="hidden sm:inline">History</span>
                                 </Link>
+
+                                {/* Change Password Button */}
+                                <Link
+                                    href={route('password.change')}
+                                    className="inline-flex items-center px-2 py-1.5 sm:px-3 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg text-sm font-medium text-blue-300 transition"
+                                    aria-label="Change Password"
+                                >
+                                    <KeyIcon className="h-4 w-4 sm:mr-1.5" />
+                                    <span className="hidden sm:inline">Change Password</span>
+                                </Link>
+
+                                {/* Logout Button */}
                                 <button
                                     onClick={handleLogout}
-                                    className="inline-flex items-center px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm font-medium text-red-300 transition"
+                                    className="inline-flex items-center px-2 py-1.5 sm:px-3 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm font-medium text-red-300 transition"
+                                    aria-label="Logout"
                                 >
-                                    <ArrowRightOnRectangleIcon className="h-4 w-4 mr-1.5" />
+                                    <ArrowRightOnRectangleIcon className="h-4 w-4 sm:mr-1.5" />
                                     <span className="hidden sm:inline">Logout</span>
                                 </button>
                             </div>
