@@ -217,14 +217,35 @@ public function history(Request $request)
 public function scan($token)
 {
     $location = Location::where('qr_code_token', $token)->firstOrFail();
+    $user = auth()->user();
+    $todayManila = Carbon::now('Asia/Manila')->toDateString();
 
-    // Check if the location is active
+    // Check if location is active
     if (!$location->is_active) {
-        return redirect()->route('attendance.create')
-            ->withErrors(['location' => 'This attendance location is not currently active.']);
+        return Inertia::render('Attendance/QrScan', [
+            'location' => $location,
+            'token' => $token,
+            'canTakeAttendance' => false,
+            'locationError' => 'This attendance location is not active.',
+        ]);
     }
 
-    // Determine if attendance can be taken based on time window
+    // Check if user already attended this location today
+    $alreadyAttended = AttendanceRecord::where('user_id', $user->id)
+        ->where('location_id', $location->id)
+        ->whereDate('attendance_timestamp', $todayManila)
+        ->exists();
+
+    if ($alreadyAttended) {
+        return Inertia::render('Attendance/QrScan', [
+            'location' => $location,
+            'token' => $token,
+            'canTakeAttendance' => false,
+            'locationError' => 'You have already recorded attendance for this location today.',
+        ]);
+    }
+
+    // Check time window
     $now = Carbon::now('Asia/Manila');
     $start = $location->start_time ? Carbon::parse($location->start_time, 'Asia/Manila') : null;
     $end = $location->end_time ? Carbon::parse($location->end_time, 'Asia/Manila') : null;
@@ -246,6 +267,9 @@ public function scan($token)
         'location' => $location,
         'token' => $token,
         'canTakeAttendance' => $canTakeAttendance,
+        'locationError' => null,
     ]);
 }
+
+
 }

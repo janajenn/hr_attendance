@@ -83,11 +83,11 @@ const RecenterControl = ({ onRecenter }) => {
     return null;
 };
 
-export default function QrScan({ location, token, canTakeAttendance }) {
+export default function QrScan({ location, token, canTakeAttendance, locationError: propLocationError = null }) {
     const { flash, errors } = usePage().props;
     const [userPosition, setUserPosition] = useState(null);
     const [distance, setDistance] = useState(null);
-    const [locationError, setLocationError] = useState(null);
+    const [locationError, setLocationError] = useState(propLocationError || null);
     const [withinRange, setWithinRange] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const [submitted, setSubmitted] = useState(false);
@@ -95,21 +95,36 @@ export default function QrScan({ location, token, canTakeAttendance }) {
     const mapRef = useRef(null);
     const submissionAttempted = useRef(false);
 
+    // If a prop error is passed, disable all functionality
     useEffect(() => {
-        if (flash?.success) setSubmitted(true);
-    }, [flash]);
+        if (propLocationError) {
+            setLocationError(propLocationError);
+        }
+    }, [propLocationError]);
 
+    // Display server-side errors (e.g., duplicate from form submission)
     useEffect(() => {
-        if (errors?.location) setLocationError(errors.location);
+        if (errors?.location) {
+            setLocationError(errors.location);
+        }
     }, [errors]);
+
+    // Check if already succeeded from flash
+    useEffect(() => {
+        if (flash?.success) {
+            setSubmitted(true);
+        }
+    }, [flash]);
 
     const handleLogout = (e) => {
         e.preventDefault();
         router.post(route('logout'));
     };
 
+    // Get a fresh location on mount (only if not already submitted and no error)
     useEffect(() => {
         if (submitted || locationError) return;
+
         if (!navigator.geolocation) {
             setLocationError('Geolocation is not supported.');
             return;
@@ -126,6 +141,7 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                 setWithinRange(inside);
                 setLocationError(null);
                 setIsLocating(false);
+
                 if (inside && canTakeAttendance && !submitted && !submissionAttempted.current) {
                     submitAttendance(latitude, longitude);
                 }
@@ -242,7 +258,25 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                 </header>
 
                 <main className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 pb-8">
-                    {submitted ? (
+                    {/* Display error message if any */}
+                    {locationError && (
+                        <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-6 text-center">
+                            <XCircleIcon className="h-12 w-12 text-red-400 mx-auto mb-3" />
+                            <p className="text-red-300 text-base font-medium">{locationError}</p>
+                            <p className="text-red-200 text-sm mt-2">
+                                Please contact HR or use a different QR code.
+                            </p>
+                            <Link
+                                href={route('attendance.create')}
+                                className="inline-block mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white text-sm transition"
+                            >
+                                ← Back to Scanner
+                            </Link>
+                        </div>
+                    )}
+
+                    {/* Normal flow – only if no error */}
+                    {!locationError && submitted && (
                         <div className="bg-green-500/20 border border-green-500/50 rounded-2xl p-6 sm:p-8 text-center">
                             <CheckCircleIcon className="h-16 w-16 sm:h-20 sm:w-20 text-green-400 mx-auto mb-4" />
                             <h2 className="text-xl sm:text-2xl font-bold mb-2">Attendance Recorded!</h2>
@@ -269,7 +303,9 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                                 </Link>
                             </div>
                         </div>
-                    ) : (
+                    )}
+
+                    {!locationError && !submitted && (
                         <>
                             <div className="bg-white/5 backdrop-blur-lg rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                                 <div className="h-48 xs:h-56 sm:h-64 md:h-80 w-full">
@@ -306,12 +342,18 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                                 </div>
                             </div>
 
-                            {/* Status card and other sections unchanged */}
-                            <div className={`p-3 sm:p-4 rounded-2xl backdrop-blur-lg border transition-all duration-500 ${isInside && !submitting ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/20' : 'bg-red-500/20 border-red-500/50 shadow-lg shadow-red-500/20'}`}>
+                            {/* Status Card */}
+                            <div className={`p-3 sm:p-4 rounded-2xl backdrop-blur-lg border transition-all duration-500 ${
+                                isInside && !submitting
+                                    ? 'bg-green-500/20 border-green-500/50 shadow-lg shadow-green-500/20'
+                                    : 'bg-red-500/20 border-red-500/50 shadow-lg shadow-red-500/20'
+                            }`}>
                                 <div className="flex flex-wrap items-center justify-between gap-2">
                                     <div className="flex items-center gap-2">
                                         <div className={`w-3 h-3 rounded-full ${isInside ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
-                                        <span className="text-sm sm:text-base font-medium">{isInside ? 'Inside allowed zone' : 'Outside allowed zone'}</span>
+                                        <span className="text-sm sm:text-base font-medium">
+                                            {isInside ? 'Inside allowed zone' : 'Outside allowed zone'}
+                                        </span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                         {userPosition && (
@@ -330,6 +372,7 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                                         </button>
                                     </div>
                                 </div>
+
                                 {userPosition && (
                                     <div className="mt-3">
                                         <div className="flex justify-between text-xs text-white/70 mb-1">
@@ -337,12 +380,18 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                                             <span>{distance?.toFixed(1)}m / {location.radius}m</span>
                                         </div>
                                         <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
-                                            <div className={`h-full transition-all duration-500 ${isInside ? 'bg-green-400' : 'bg-red-400'}`} style={{ width: `${distancePercent}%` }} />
+                                            <div
+                                                className={`h-full transition-all duration-500 ${
+                                                    isInside ? 'bg-green-400' : 'bg-red-400'
+                                                }`}
+                                                style={{ width: `${distancePercent}%` }}
+                                            />
                                         </div>
                                     </div>
                                 )}
                             </div>
 
+                            {/* Attendance Period Info */}
                             {location.start_time_formatted && location.end_time_formatted && (
                                 <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 sm:p-4">
                                     <h3 className="text-sm font-semibold text-blue-300 mb-2 flex items-center">
@@ -393,13 +442,6 @@ export default function QrScan({ location, token, canTakeAttendance }) {
                                         <ArrowPathIcon className={`h-4 w-4 mr-2 ${isLocating ? 'animate-spin' : ''}`} />
                                         {isLocating ? 'Locating...' : 'Retry Location'}
                                     </button>
-                                </div>
-                            )}
-
-                            {locationError && (
-                                <div className="bg-red-500/20 border border-red-500/50 rounded-xl p-3 sm:p-4 text-sm flex items-start">
-                                    <XCircleIcon className="h-5 w-5 text-red-400 mr-2 flex-shrink-0 mt-0.5" />
-                                    <span className="break-words">{locationError}</span>
                                 </div>
                             )}
                         </>
