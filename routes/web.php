@@ -34,7 +34,7 @@ Route::middleware(['auth'])->group(function () {
 
     // Password change (accessible even when must_change_password = true)
     Route::get('/change-password', [PasswordChangeController::class, 'showForm'])->name('password.change');
-    Route::post('/change-password', [PasswordChangeController::class, 'update'])->name('password.update');
+    // Route::post('/change-password', [PasswordChangeController::class, 'update'])->name('password.update');
 
 
      Route::middleware(['password.changed'])->group(function () {
