@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use App\Models\AttendanceRecord;
+use Illuminate\Support\Facades\Cache;
 use App\Jobs\ProcessAttendance;
 use App\Models\Location;
 use Carbon\Carbon;
@@ -106,76 +107,86 @@ public function create()
     }
 
     public function storeFromQr(Request $request)
-    {
-        $request->validate([
-            'latitude' => 'required|numeric',
-            'longitude' => 'required|numeric',
-            'client_timestamp' => 'nullable|date',
-            'token' => 'required|string|exists:locations,qr_code_token',
-        ]);
+{
+    $request->validate([
+        'latitude' => 'required|numeric',
+        'longitude' => 'required|numeric',
+        'client_timestamp' => 'nullable|date',
+        'token' => 'required|string|exists:locations,qr_code_token',
+    ]);
 
-        $location = Location::where('qr_code_token', $request->token)->first();
+    $location = Location::where('qr_code_token', $request->token)->first();
 
-        if (!$location->is_active) {
-            return back()->withErrors(['location' => 'This attendance location is not active.']);
-        }
-
-        // Duplicate check (use Manila date)
-        $todayManila = Carbon::now('Asia/Manila')->toDateString();
-        $existing = AttendanceRecord::where('user_id', auth()->id())
-            ->where('location_id', $location->id)
-            ->whereDate('attendance_timestamp', $todayManila)
-            ->exists();
-
-        if ($existing) {
-            return back()->withErrors(['location' => 'You have already recorded attendance for this location today.']);
-        }
-
-        $distance = $this->distance(
-            $request->latitude,
-            $request->longitude,
-            $location->latitude,
-            $location->longitude
-        );
-
-        if ($distance > $location->radius) {
-            return back()->withErrors(['location' => 'You are outside the allowed area.']);
-        }
-
-        $nowManila = Carbon::now('Asia/Manila');
-        $status = 'present';
-
-        if ($location->start_time && $location->end_time) {
-            $start = Carbon::parse($location->start_time, 'Asia/Manila');
-            $end = Carbon::parse($location->end_time, 'Asia/Manila');
-            if ($nowManila->lt($start)) {
-                return back()->withErrors(['location' => 'Attendance has not started yet.']);
-            }
-            if ($nowManila->gt($end)) {
-                return back()->withErrors(['location' => 'Attendance period has ended.']);
-            }
-            if ($location->late_threshold && $nowManila->gt($start->copy()->addMinutes($location->late_threshold))) {
-                $status = 'late';
-            }
-        }
-
-        $now = Carbon::now(); // stored in Asia/Manila
-
-        $data = [
-            'user_id' => auth()->id(),
-            'location_id' => $location->id,
-            'attendance_timestamp' => $now,
-            'photo_path' => null,
-            'latitude' => $request->latitude,
-            'longitude' => $request->longitude,
-            'status' => $status,
-        ];
-
-        ProcessAttendance::dispatch($data);
-
-        return redirect()->back()->with('success', 'Attendance recorded successfully.');
+    if (!$location->is_active) {
+        return back()->withErrors(['location' => 'This attendance location is not active.']);
     }
 
+    $todayManila = Carbon::now('Asia/Manila')->toDateString();
+    $userId = auth()->id();
+    $cacheKey = "attendance_processing_{$userId}_{$location->id}_{$todayManila}";
+
+    // Check if already processing
+    if (Cache::has($cacheKey)) {
+        return back()->withErrors(['location' => 'Your attendance is already being processed. Please wait a moment.']);
+    }
+
+    // Check duplicate in database (already committed records)
+    $existing = AttendanceRecord::where('user_id', $userId)
+        ->where('location_id', $location->id)
+        ->whereDate('attendance_timestamp', $todayManila)
+        ->exists();
+
+    if ($existing) {
+        return back()->withErrors(['location' => 'You have already recorded attendance for this location today.']);
+    }
+
+    $distance = $this->distance(
+        $request->latitude,
+        $request->longitude,
+        $location->latitude,
+        $location->longitude
+    );
+
+    if ($distance > $location->radius) {
+        return back()->withErrors(['location' => 'You are outside the allowed area.']);
+    }
+
+    $nowManila = Carbon::now('Asia/Manila');
+    $status = 'present';
+
+    if ($location->start_time && $location->end_time) {
+        $start = Carbon::parse($location->start_time, 'Asia/Manila');
+        $end = Carbon::parse($location->end_time, 'Asia/Manila');
+        if ($nowManila->lt($start)) {
+            return back()->withErrors(['location' => 'Attendance has not started yet.']);
+        }
+        if ($nowManila->gt($end)) {
+            return back()->withErrors(['location' => 'Attendance period has ended.']);
+        }
+        if ($location->late_threshold && $nowManila->gt($start->copy()->addMinutes($location->late_threshold))) {
+            $status = 'late';
+        }
+    }
+
+    $now = Carbon::now(); // stored in Asia/Manila
+
+    $data = [
+        'user_id' => $userId,
+        'location_id' => $location->id,
+        'attendance_timestamp' => $now,
+        'photo_path' => null,
+        'latitude' => $request->latitude,
+        'longitude' => $request->longitude,
+        'status' => $status,
+    ];
+
+    // Set cache to prevent duplicate submissions for 5 minutes
+    Cache::put($cacheKey, true, 300); // 5 minutes
+
+    ProcessAttendance::dispatch($data);
+
+    return redirect()->back()->with('success', 'Attendance recorded successfully.');
+}
 
     private function distance($lat1, $lon1, $lat2, $lon2)
     {
