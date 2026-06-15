@@ -202,8 +202,9 @@ public function create()
 
 public function history(Request $request)
 {
+    $user = auth()->user()->load('department');
     $query = AttendanceRecord::with('location')
-        ->where('user_id', auth()->id())
+        ->where('user_id', $user->id)
         ->orderBy('attendance_timestamp', 'desc');
 
     if ($request->filled('location_id')) {
@@ -218,6 +219,7 @@ public function history(Request $request)
         'records' => $records,
         'locations' => $locations,
         'filters' => $request->only(['location_id']),
+        'userDepartment' => $user->department->name ?? null, // new
     ]);
 }
 
@@ -282,5 +284,23 @@ public function scan($token)
     ]);
 }
 
+
+public function checkStatus(Request $request)
+{
+    $request->validate([
+        'token' => 'required|string|exists:locations,qr_code_token',
+    ]);
+
+    $location = Location::where('qr_code_token', $request->token)->first();
+    $userId = auth()->id();
+    $todayManila = Carbon::now('Asia/Manila')->toDateString();
+
+    $exists = AttendanceRecord::where('user_id', $userId)
+        ->where('location_id', $location->id)
+        ->whereDate('attendance_timestamp', $todayManila)
+        ->exists();
+
+    return response()->json(['recorded' => $exists]);
+}
 
 }

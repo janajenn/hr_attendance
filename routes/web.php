@@ -46,6 +46,7 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/attendance/history', [AttendanceController::class, 'history'])->name('attendance.history');
             Route::get('/scan/{token}', [AttendanceController::class, 'scan'])->name('attendance.scan');
             Route::post('/attendance/qr', [AttendanceController::class, 'storeFromQr'])->name('attendance.qr.store');
+            Route::get('/attendance/check-status', [AttendanceController::class, 'checkStatus'])->name('attendance.check-status');
         });
     });
 

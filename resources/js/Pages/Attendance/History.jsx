@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import {
     CalendarIcon,
     ArrowLeftIcon,
@@ -9,12 +9,17 @@ import {
     ClockIcon,
     FunnelIcon,
     XMarkIcon,
+    UserIcon,
+    BuildingOfficeIcon,
 } from '@heroicons/react/24/outline';
 
 export default function History({ records, locations, filters }) {
+    const { auth } = usePage().props;
     const items = records.data;
     const links = records.links;
     const [selectedLocation, setSelectedLocation] = useState(filters.location_id || '');
+    const [selectedRecord, setSelectedRecord] = useState(null);
+    const [showModal, setShowModal] = useState(false);
 
     const handleLocationFilter = (e) => {
         const locationId = e.target.value;
@@ -31,6 +36,16 @@ export default function History({ records, locations, filters }) {
             preserveState: true,
             preserveScroll: true,
         });
+    };
+
+    const openModal = (record) => {
+        setSelectedRecord(record);
+        setShowModal(true);
+    };
+
+    const closeModal = () => {
+        setShowModal(false);
+        setSelectedRecord(null);
     };
 
     const getStatusIcon = (status) => {
@@ -55,6 +70,31 @@ export default function History({ records, locations, filters }) {
         }
     };
 
+    const formatFullDateTime = (timestamp) => {
+        return new Date(timestamp).toLocaleString('en-PH', {
+            timeZone: 'Asia/Manila',
+            dateStyle: 'full',
+            timeStyle: 'medium',
+        });
+    };
+
+    const formatTimeOnly = (timestamp) => {
+        return new Date(timestamp).toLocaleTimeString('en-PH', {
+            timeZone: 'Asia/Manila',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    const formatDateOnly = (timestamp) => {
+        return new Date(timestamp).toLocaleDateString('en-PH', {
+            timeZone: 'Asia/Manila',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+        });
+    };
+
     return (
         <>
             <Head title="Attendance History" />
@@ -70,39 +110,45 @@ export default function History({ records, locations, filters }) {
                                 <h1 className="text-lg font-semibold tracking-tight">Attendance History</h1>
                             </div>
                             <Link
-    href={route('attendance.create')}
-    className="inline-flex items-center px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition"
->
-    <ArrowLeftIcon className="h-4 w-4 mr-1.5" />
-    <span>Back to Scanner</span>
-</Link>
+                                href={route('attendance.create')}
+                                className="inline-flex items-center px-3 py-1.5 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition"
+                            >
+                                <ArrowLeftIcon className="h-4 w-4 mr-1.5" />
+                                <span>Back to Scanner</span>
+                            </Link>
                         </div>
                     </div>
                 </header>
 
                 <main className="max-w-4xl mx-auto px-4 py-6">
-
                     {/* Queue Info Card */}
+                    {/* Queue Info Card – Reassuring & Easy to Understand */}
 <div className="bg-blue-900/20 border border-blue-500/30 rounded-xl p-4 mb-4">
     <div className="flex items-start gap-3">
         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-blue-400 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
         <div className="text-sm text-blue-200">
-            <p className="font-semibold">About attendance records</p>
-            <p>When you submit your attendance, it may take up to 1 minute to appear in your history. This is because we process records in the background to keep the system fast and reliable. No need to resubmit – your attendance will be saved automatically.</p>
+            <p className="font-semibold">Your attendance is being processed</p>
+            <p className="mt-1">
+                After you scan, your attendance is received immediately and will be saved in the background.
+                <span className="font-medium text-white"> It may take about 1 minute</span> to appear in your history.
+            </p>
+            <p className="mt-1">
+                <span className="font-medium text-yellow-300">➡️ No need to scan again</span> – your record is already in the system and will show up shortly.
+            </p>
         </div>
     </div>
-</div>
 
+                    </div>
 
                     {/* Filter Section */}
                     <div className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-4 mb-6">
                         <div className="flex items-center justify-between mb-3">
-                           <div className="flex items-center gap-2">
-    <FunnelIcon className="h-5 w-5 text-blue-400" />
-    <h3 className="text-sm font-semibold text-gray-300">Filter by Location</h3>
-</div>
+                            <div className="flex items-center gap-2">
+                                <FunnelIcon className="h-5 w-5 text-blue-400" />
+                                <h3 className="text-sm font-semibold text-gray-300">Filter by Location</h3>
+                            </div>
                             {selectedLocation && (
                                 <button
                                     onClick={clearFilter}
@@ -129,34 +175,31 @@ export default function History({ records, locations, filters }) {
                     </div>
 
                     {items.length === 0 ? (
-    <div className="text-center py-8 sm:py-16 px-4 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10">
-        <CalendarIcon className="h-12 w-12 sm:h-16 sm:w-16 text-gray-500 mx-auto mb-3 sm:mb-4" />
-        <p className="text-base sm:text-lg text-gray-400">No attendance records yet.</p>
-        <div className="mt-4 bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 sm:p-4 max-w-full sm:max-w-md mx-auto">
-            <p className="text-xs sm:text-sm text-blue-200 leading-relaxed">
-                <span className="font-semibold">📌 Note:</span> If you just scanned a QR code, your record may take up to 1 minute to appear here.
-                Please wait a moment and refresh the page. Do not scan again.
-            </p>
-        </div>
-    </div>
-) : (
+                        <div className="text-center py-8 sm:py-16 px-4 bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10">
+                            <CalendarIcon className="h-12 w-12 sm:h-16 sm:w-16 text-gray-500 mx-auto mb-3 sm:mb-4" />
+                            <p className="text-base sm:text-lg text-gray-400">No attendance records yet.</p>
+                            <div className="mt-4 bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 sm:p-4 max-w-full sm:max-w-md mx-auto">
+                                <p className="text-xs sm:text-sm text-blue-200 leading-relaxed">
+                                    <span className="font-semibold">📌 Note:</span> If you just scanned a QR code, your record may take up to 1 minute to appear here.
+                                    Please wait a moment and refresh the page. Do not scan again.
+                                </p>
+                            </div>
+                        </div>
+                    ) : (
                         <>
                             <div className="space-y-4">
                                 {items.map((record) => (
                                     <div
                                         key={record.id}
-                                        className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-5 hover:bg-white/10 transition-all duration-200"
+                                        onClick={() => openModal(record)}
+                                        className="bg-white/5 backdrop-blur-lg rounded-2xl border border-white/10 p-5 hover:bg-white/15 hover:scale-[1.02] transition-all duration-200 cursor-pointer"
                                     >
                                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                                                     <CalendarIcon className="h-4 w-4 text-blue-400 flex-shrink-0" />
                                                     <time className="text-sm text-blue-400 font-medium break-words">
-                                                        {new Date(record.attendance_timestamp).toLocaleString('en-PH', {
-                                                            timeZone: 'Asia/Manila',
-                                                            dateStyle: 'full',
-                                                            timeStyle: 'medium'
-                                                        })}
+                                                        {formatFullDateTime(record.attendance_timestamp)}
                                                     </time>
                                                 </div>
                                                 <div className="flex items-start gap-2 text-sm">
@@ -209,6 +252,106 @@ export default function History({ records, locations, filters }) {
                     )}
                 </main>
             </div>
+
+            {/* Modal – Detailed Attendance Info */}
+            {showModal && selectedRecord && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm transition-all duration-200"
+                    onClick={closeModal}
+                >
+                    <div
+                        className="relative bg-gray-800 rounded-2xl border border-white/20 shadow-2xl w-full max-w-md overflow-hidden transform transition-all duration-300 scale-100 max-h-[90vh] overflow-y-auto"
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        {/* Modal header */}
+                        <div className="bg-gradient-to-r from-blue-600/20 to-purple-600/20 px-6 py-4 border-b border-white/10 flex justify-between items-center sticky top-0 bg-gray-800 z-10">
+                            <h3 className="text-xl font-bold text-white">Attendance Details</h3>
+                            <button
+                                onClick={closeModal}
+                                className="text-gray-400 hover:text-white transition p-1 rounded-full hover:bg-white/10"
+                            >
+                                <XMarkIcon className="h-5 w-5" />
+                            </button>
+                        </div>
+
+                        {/* Modal body */}
+                        <div className="p-6 space-y-4">
+                            {/* Employee & Department */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gray-700/50 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                                        <UserIcon className="h-3 w-3" />
+                                        <span>Employee</span>
+                                    </div>
+                                    <p className="text-white font-medium text-sm">{auth.user.name}</p>
+                                </div>
+                                <div className="bg-gray-700/50 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                                        <BuildingOfficeIcon className="h-3 w-3" />
+                                        <span>Department</span>
+                                    </div>
+                                    <p className="text-white text-sm">{auth.user.department?.name || 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            {/* Location */}
+                            <div className="bg-gray-700/50 rounded-lg p-3">
+                                <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                                    <MapPinIcon className="h-3 w-3" />
+                                    <span>Attendance Location</span>
+                                </div>
+                                <p className="text-white text-sm">
+                                    {selectedRecord.location?.name || 'Unknown Location'}
+                                </p>
+                            </div>
+
+                            {/* Date & Time */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="bg-gray-700/50 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                                        <CalendarIcon className="h-3 w-3" />
+                                        <span>Date</span>
+                                    </div>
+                                    <p className="text-white text-sm">{formatDateOnly(selectedRecord.attendance_timestamp)}</p>
+                                </div>
+                                <div className="bg-gray-700/50 rounded-lg p-3">
+                                    <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                                        <ClockIcon className="h-3 w-3" />
+                                        <span>Time In</span>
+                                    </div>
+                                    <p className="text-white text-sm">{formatTimeOnly(selectedRecord.attendance_timestamp)}</p>
+                                </div>
+                            </div>
+
+                            {/* Status */}
+                            <div className="bg-gray-700/50 rounded-lg p-3">
+                                <div className="flex items-center gap-2 text-gray-400 text-xs mb-1">
+                                    <CheckCircleIcon className="h-3 w-3" />
+                                    <span>Status</span>
+                                </div>
+                                <p className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(selectedRecord.status)}`}>
+                                    {getStatusIcon(selectedRecord.status)}
+                                    {selectedRecord.status.charAt(0).toUpperCase() + selectedRecord.status.slice(1)}
+                                </p>
+                            </div>
+
+                            {/* Additional info if available */}
+                            {selectedRecord.late_threshold && (
+                                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-3">
+                                    <p className="text-xs text-yellow-300">
+                                        ⚠️ Late by {selectedRecord.late_threshold} minutes
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Modal footer */}
+                        <div className="bg-gray-900/50 px-6 py-3 border-t border-white/10 text-xs text-gray-400 flex justify-end">
+                            Tap outside to close
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     );
 }

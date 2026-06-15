@@ -92,6 +92,9 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
     const [isLocating, setIsLocating] = useState(false);
     const [submitted, setSubmitted] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [polling, setPolling] = useState(false);
+    const [pollingInterval, setPollingInterval] = useState(null);
+    const [pollingError, setPollingError] = useState(false);
     const mapRef = useRef(null);
     const submissionAttempted = useRef(false);
 
@@ -109,12 +112,12 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
         }
     }, [errors]);
 
-    // Check if already succeeded from flash
+    // Cleanup polling interval on unmount
     useEffect(() => {
-        if (flash?.success) {
-            setSubmitted(true);
-        }
-    }, [flash]);
+        return () => {
+            if (pollingInterval) clearInterval(pollingInterval);
+        };
+    }, [pollingInterval]);
 
     const handleLogout = (e) => {
         e.preventDefault();
@@ -164,13 +167,52 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
             client_timestamp: new Date().toISOString(),
         }, {
             forceFormData: true,
-            onSuccess: () => setSubmitting(false),
+            onSuccess: () => {
+                setSubmitting(false);
+                startPolling(); // Start polling for the record
+            },
             onError: (err) => {
                 setLocationError(err.location || 'An error occurred');
                 setSubmitting(false);
                 submissionAttempted.current = false;
             },
         });
+    };
+
+    const startPolling = () => {
+        setPolling(true);
+        let attempts = 0;
+        const maxAttempts = 60; // 60 * 2 seconds = 2 minutes
+        const interval = setInterval(async () => {
+            attempts++;
+            try {
+                const res = await fetch(`/attendance/check-status?token=${token}`);
+                const data = await res.json();
+                if (data.recorded) {
+                    // Attendance record found!
+                    clearInterval(interval);
+                    setPolling(false);
+                    setSubmitted(true);
+                    // Redirect to history after a short delay
+                    setTimeout(() => {
+                        router.visit(route('attendance.history'));
+                    }, 1500);
+                } else if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    setPolling(false);
+                    setPollingError(true);
+                    setLocationError('Your attendance is taking longer than expected. Please check your history later or contact HR.');
+                }
+            } catch (error) {
+                console.error(error);
+                if (attempts >= maxAttempts) {
+                    clearInterval(interval);
+                    setPolling(false);
+                    setPollingError(true);
+                }
+            }
+        }, 2000);
+        setPollingInterval(interval);
     };
 
     const retryLocation = () => {
@@ -259,7 +301,7 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
 
                 <main className="max-w-4xl mx-auto px-3 sm:px-4 py-3 sm:py-4 space-y-3 sm:space-y-4 pb-8">
                     {/* Display error message if any */}
-                    {locationError && (
+                    {locationError && !(submitted || polling) && (
                         <div className="bg-red-500/20 border border-red-500/50 rounded-2xl p-6 text-center">
                             <XCircleIcon className="h-12 w-12 text-red-400 mx-auto mb-3" />
                             <p className="text-red-300 text-base font-medium">{locationError}</p>
@@ -276,36 +318,54 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
                     )}
 
                     {/* Normal flow – only if no error */}
-                    {!locationError && submitted && (
+                    {!locationError && (submitted || polling) && (
                         <div className="bg-green-500/20 border border-green-500/50 rounded-2xl p-6 sm:p-8 text-center">
-                            <CheckCircleIcon className="h-16 w-16 sm:h-20 sm:w-20 text-green-400 mx-auto mb-4" />
-                            <h2 className="text-xl sm:text-2xl font-bold mb-2">Attendance Recorded!</h2>
-                            <p className="text-sm sm:text-base text-green-200 mb-4">
-                                Your attendance has been successfully submitted.
-                            </p>
-                            <div className="bg-blue-900/30 border border-blue-500/30 rounded-lg p-3 mb-6 text-left">
-                                <p className="text-xs text-blue-200">
-                                    <span className="font-semibold">📌 Note:</span> Your record may take up to 1 minute to appear in your history. This is because we process attendance in the background to keep the system fast. No need to rescan – your attendance is already saved.
-                                </p>
-                            </div>
-                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                                <Link
-                                    href={route('attendance.history')}
+                            {submitted ? (
+                                <>
+                                    <CheckCircleIcon className="h-16 w-16 sm:h-20 sm:w-20 text-green-400 mx-auto mb-4" />
+                                    <h2 className="text-xl sm:text-2xl font-bold mb-2">Attendance Recorded!</h2>
+                                    <p className="text-sm sm:text-base text-green-200 mb-4">
+                                        Your attendance has been successfully recorded.
+                                    </p>
+                                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                        <Link
+                                            href={route('attendance.history')}
                                     className="inline-block px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition text-center"
-                                >
-                                    View Attendance History
-                                </Link>
-                                <Link
-                                    href={route('attendance.create')}
+                                        >
+                                            View Attendance History
+                                        </Link>
+                                        <Link
+                                            href={route('attendance.create')}
                                     className="inline-block px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition text-center"
-                                >
-                                    Scan Another QR
-                                </Link>
-                            </div>
+                                        >
+                                            Scan Another QR
+                                        </Link>
+                                    </div>
+                                </>
+                            ) : (
+                                <>
+                                    <ArrowPathIcon className="h-16 w-16 text-blue-400 mx-auto mb-4 animate-spin" />
+                                    <h2 className="text-xl sm:text-2xl font-bold mb-2">Processing Attendance</h2>
+                                    <p className="text-sm sm:text-base text-blue-200 mb-4">
+                                        Your attendance has been received and is being processed. This may take up to a minute.
+                                    </p>
+                                    {!pollingError && (
+                                        <div className="flex items-center justify-center gap-2 text-xs text-gray-400">
+                                            <div className="animate-pulse">⏳</div>
+                                            <span>Please wait – you will be redirected automatically when ready.</span>
+                                        </div>
+                                    )}
+                                    {pollingError && (
+                                        <p className="text-sm text-red-300 mt-2">
+                                            Your attendance is taking longer than expected. Please check your history later or contact HR.
+                                        </p>
+                                    )}
+                                </>
+                            )}
                         </div>
                     )}
 
-                    {!locationError && !submitted && (
+                    {!locationError && !submitted && !polling && (
                         <>
                             <div className="bg-white/5 backdrop-blur-lg rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
                                 <div className="h-48 xs:h-56 sm:h-64 md:h-80 w-full">
