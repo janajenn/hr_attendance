@@ -287,6 +287,8 @@ public function scan($token)
 
 public function checkStatus(Request $request)
 {
+
+\Log::info('checkStatus called', $request->all());
     $request->validate([
         'token' => 'required|string|exists:locations,qr_code_token',
     ]);
