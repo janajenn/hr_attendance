@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Head, useForm } from '@inertiajs/react';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import InputError from '@/Components/InputError';
+import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline';
 
 export default function ChangePassword() {
     const { data, setData, post, processing, errors, reset } = useForm({
@@ -11,6 +12,10 @@ export default function ChangePassword() {
         password: '',
         password_confirmation: '',
     });
+
+    const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+    const [showPasswordConfirmation, setShowPasswordConfirmation] = useState(false);
 
     const submit = (e) => {
         e.preventDefault();
@@ -35,66 +40,111 @@ export default function ChangePassword() {
                             </svg>
                         </div>
                         <h2 className="text-2xl font-bold text-white">Change Your Password</h2>
-                        <p className="text-gray-400 text-sm mt-1">For security, please set a new password</p>
+                        <p className="text-white/80 text-sm mt-1">For security, please set a new password</p>
                     </div>
 
                     <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl shadow-2xl border border-green-500/20 p-6 sm:p-8">
                         <form onSubmit={submit} className="space-y-5">
+                            {/* Current Password */}
                             <div>
                                 <InputLabel
                                     htmlFor="current_password"
                                     value="Current Password"
-                                    className="text-gray-300 text-sm font-medium mb-1 block"
+                                    className="text-white text-sm font-medium mb-1 block"
                                 />
-                                <TextInput
-                                    id="current_password"
-                                    type="password"
-                                    name="current_password"
-                                    value={data.current_password}
-                                    className="mt-1 block w-full bg-gray-800 border-gray-700 text-white focus:border-green-500 focus:ring-green-500 rounded-lg"
-                                    autoComplete="current-password"
-                                    onChange={(e) => setData('current_password', e.target.value)}
-                                    required
-                                />
-                                <InputError message={errors.current_password} className="mt-1" />
+                                <div className="relative">
+                                    <TextInput
+                                        id="current_password"
+                                        type={showCurrentPassword ? 'text' : 'password'}
+                                        name="current_password"
+                                        value={data.current_password}
+                                        className="mt-1 block w-full bg-gray-800 border-gray-700 text-white focus:border-green-500 focus:ring-green-500 rounded-lg pr-10"
+                                        autoComplete="current-password"
+                                        onChange={(e) => setData('current_password', e.target.value)}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white transition"
+                                        aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showCurrentPassword ? (
+                                            <EyeSlashIcon className="h-5 w-5" />
+                                        ) : (
+                                            <EyeIcon className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
+                                <InputError message={errors.current_password} className="mt-1 text-red-400" />
                             </div>
 
+                            {/* New Password */}
                             <div>
                                 <InputLabel
                                     htmlFor="password"
                                     value="New Password"
-                                    className="text-gray-300 text-sm font-medium mb-1 block"
+                                    className="text-white text-sm font-medium mb-1 block"
                                 />
-                                <TextInput
-                                    id="password"
-                                    type="password"
-                                    name="password"
-                                    value={data.password}
-                                    className="mt-1 block w-full bg-gray-800 border-gray-700 text-white focus:border-green-500 focus:ring-green-500 rounded-lg"
-                                    autoComplete="new-password"
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    required
-                                />
-                                <InputError message={errors.password} className="mt-1" />
+                                <div className="relative">
+                                    <TextInput
+                                        id="password"
+                                        type={showPassword ? 'text' : 'password'}
+                                        name="password"
+                                        value={data.password}
+                                        className="mt-1 block w-full bg-gray-800 border-gray-700 text-white focus:border-green-500 focus:ring-green-500 rounded-lg pr-10"
+                                        autoComplete="new-password"
+                                        onChange={(e) => setData('password', e.target.value)}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white transition"
+                                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPassword ? (
+                                            <EyeSlashIcon className="h-5 w-5" />
+                                        ) : (
+                                            <EyeIcon className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
+                                <InputError message={errors.password} className="mt-1 text-red-400" />
                             </div>
 
+                            {/* Confirm Password */}
                             <div>
                                 <InputLabel
                                     htmlFor="password_confirmation"
                                     value="Confirm New Password"
-                                    className="text-gray-300 text-sm font-medium mb-1 block"
+                                    className="text-white text-sm font-medium mb-1 block"
                                 />
-                                <TextInput
-                                    id="password_confirmation"
-                                    type="password"
-                                    name="password_confirmation"
-                                    value={data.password_confirmation}
-                                    className="mt-1 block w-full bg-gray-800 border-gray-700 text-white focus:border-green-500 focus:ring-green-500 rounded-lg"
-                                    autoComplete="new-password"
-                                    onChange={(e) => setData('password_confirmation', e.target.value)}
-                                    required
-                                />
-                                <InputError message={errors.password_confirmation} className="mt-1" />
+                                <div className="relative">
+                                    <TextInput
+                                        id="password_confirmation"
+                                        type={showPasswordConfirmation ? 'text' : 'password'}
+                                        name="password_confirmation"
+                                        value={data.password_confirmation}
+                                        className="mt-1 block w-full bg-gray-800 border-gray-700 text-white focus:border-green-500 focus:ring-green-500 rounded-lg pr-10"
+                                        autoComplete="new-password"
+                                        onChange={(e) => setData('password_confirmation', e.target.value)}
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPasswordConfirmation(!showPasswordConfirmation)}
+                                        className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-white transition"
+                                        aria-label={showPasswordConfirmation ? 'Hide password' : 'Show password'}
+                                    >
+                                        {showPasswordConfirmation ? (
+                                            <EyeSlashIcon className="h-5 w-5" />
+                                        ) : (
+                                            <EyeIcon className="h-5 w-5" />
+                                        )}
+                                    </button>
+                                </div>
+                                <InputError message={errors.password_confirmation} className="mt-1 text-red-400" />
                             </div>
 
                             <div className="pt-2 flex gap-3">
@@ -114,7 +164,7 @@ export default function ChangePassword() {
                             </div>
                         </form>
 
-                        <div className="mt-6 text-center text-xs text-gray-500">
+                        <div className="mt-6 text-center text-xs text-white/60">
                             After changing your password, you'll be redirected to the dashboard.
                         </div>
                     </div>
