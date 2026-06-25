@@ -129,7 +129,7 @@ export default function Index({ employees, filters }) {
                         <table className="min-w-full divide-y divide-green-900/30">
                             <thead className="bg-gray-900">
                                 <tr>
-                                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">ID</th>
+
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Photo</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Department</th>
@@ -148,7 +148,7 @@ export default function Index({ employees, filters }) {
                                 ) : (
                                     employees.data.map(emp => (
                                         <tr key={emp.id} className="hover:bg-gray-700">
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{emp.employee_id}</td>
+
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 {emp.photo ? (
                                                     <img src={`/storage/${emp.photo}`} alt={emp.name} className="h-10 w-10 rounded-full object-cover" />

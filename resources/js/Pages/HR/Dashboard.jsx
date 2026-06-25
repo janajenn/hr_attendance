@@ -4,9 +4,8 @@ import HRLayout from '@/Layouts/HRLayout';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
     PieChart, Pie, Cell,
-    LineChart, Line // <-- added LineChart and Line
+    LineChart, Line
 } from 'recharts';
-
 
 const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#84CC16'];
 
@@ -22,7 +21,14 @@ export default function Dashboard({
     departments,
     absenceReport,
     totalActiveLocations,
-    absenceFilters
+    absenceFilters,
+    // New report props
+    monthlyTrend = [],
+    statusDistribution = [],
+    dayOfWeekPattern = [],
+    locationParticipationRate = [],
+    monthlyComparison = [],
+    totalEmployees = 0,
 }) {
     const { data, setData, get } = useForm({
         employee_id: filters.employee_id || '',
@@ -39,7 +45,6 @@ export default function Dashboard({
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 20;
 
-    // Filter absence report by name
     const filteredAbsence = absenceReport.filter(emp =>
         emp.name.toLowerCase().includes(absenceSearch.toLowerCase())
     );
@@ -176,153 +181,84 @@ export default function Dashboard({
                     </form>
                 </div>
 
-               {/* Location Comparison Report - Modern Line Chart */}
-<div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 mb-8 p-6">
-    <h3 className="text-xl font-semibold text-white mb-2">Attendance by Location</h3>
-    <p className="text-sm text-gray-400 mb-4">
-        Trend of total attendance and unique employees per location.
-    </p>
-    {locationAttendanceSummary.length === 0 ? (
-        <div className="py-12 text-center text-gray-400">No attendance records for the selected filters.</div>
-    ) : (
-        <div className="h-80">
-            <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                    data={locationAttendanceSummary}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-                >
-                    <defs>
-                        {/* Gradients for line strokes (optional, can be used as stroke) */}
-                        <linearGradient id="totalGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#2563EB" stopOpacity={0.8}/>
-                        </linearGradient>
-                        <linearGradient id="uniqueGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#059669" stopOpacity={0.8}/>
-                        </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.5} />
-                    <XAxis
-                        dataKey="name"
-                        stroke="#9CA3AF"
-                        tick={{ fill: '#9CA3AF', fontSize: 12, angle: -45, textAnchor: 'end' }}
-                        height={60}
-                        interval={0}
-                    />
-                    <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                    <Tooltip
-                        contentStyle={{
-                            backgroundColor: 'rgba(31, 41, 55, 0.9)',
-                            backdropFilter: 'blur(8px)',
-                            borderColor: '#374151',
-                            borderRadius: '0.75rem',
-                            color: '#F9FAFB',
-                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                        }}
-                        labelStyle={{ color: '#F9FAFB', fontWeight: 600 }}
-                        itemStyle={{ color: '#D1D5DB' }}
-                    />
-                    <Legend
-                        wrapperStyle={{ color: '#9CA3AF', paddingTop: 20 }}
-                        iconType="circle"
-                        iconSize={10}
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="total_attendance"
-                        stroke="url(#totalGradient)"
-                        strokeWidth={3}
-                        dot={{ fill: '#3B82F6', r: 5, strokeWidth: 0 }}
-                        activeDot={{ r: 7, stroke: '#3B82F6', strokeWidth: 2 }}
-                        name="Total Attendances"
-                    />
-                    <Line
-                        type="monotone"
-                        dataKey="unique_employees"
-                        stroke="url(#uniqueGradient)"
-                        strokeWidth={3}
-                        dot={{ fill: '#10B981', r: 5, strokeWidth: 0 }}
-                        activeDot={{ r: 7, stroke: '#10B981', strokeWidth: 2 }}
-                        name="Unique Employees"
-                    />
-                </LineChart>
-            </ResponsiveContainer>
-        </div>
-    )}
-</div>
+                {/* Location Comparison Report (unchanged) */}
+                <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 mb-8 p-6">
+                    <h3 className="text-xl font-semibold text-white mb-2">Attendance by Location</h3>
+                    <p className="text-sm text-gray-400 mb-4">
+                        Trend of total attendance and unique employees per location.
+                    </p>
+                    {locationAttendanceSummary.length === 0 ? (
+                        <div className="py-12 text-center text-gray-400">No attendance records for the selected filters.</div>
+                    ) : (
+                        <div className="h-80">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <LineChart
+                                    data={locationAttendanceSummary}
+                                    margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+                                >
+                                    <defs>
+                                        <linearGradient id="totalGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#3B82F6" stopOpacity={0.8}/>
+                                            <stop offset="95%" stopColor="#2563EB" stopOpacity={0.8}/>
+                                        </linearGradient>
+                                        <linearGradient id="uniqueGradient" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                                            <stop offset="95%" stopColor="#059669" stopOpacity={0.8}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.5} />
+                                    <XAxis
+                                        dataKey="name"
+                                        stroke="#9CA3AF"
+                                        tick={{ fill: '#9CA3AF', fontSize: 12, angle: -45, textAnchor: 'end' }}
+                                        height={60}
+                                        interval={0}
+                                    />
+                                    <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                                    <Tooltip
+                                        contentStyle={{
+                                            backgroundColor: 'rgba(31, 41, 55, 0.9)',
+                                            backdropFilter: 'blur(8px)',
+                                            borderColor: '#374151',
+                                            borderRadius: '0.75rem',
+                                            color: '#F9FAFB',
+                                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                                        }}
+                                        labelStyle={{ color: '#F9FAFB', fontWeight: 600 }}
+                                        itemStyle={{ color: '#D1D5DB' }}
+                                    />
+                                    <Legend
+                                        wrapperStyle={{ color: '#9CA3AF', paddingTop: 20 }}
+                                        iconType="circle"
+                                        iconSize={10}
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="total_attendance"
+                                        stroke="url(#totalGradient)"
+                                        strokeWidth={3}
+                                        dot={{ fill: '#3B82F6', r: 5, strokeWidth: 0 }}
+                                        activeDot={{ r: 7, stroke: '#3B82F6', strokeWidth: 2 }}
+                                        name="Total Attendances"
+                                    />
+                                    <Line
+                                        type="monotone"
+                                        dataKey="unique_employees"
+                                        stroke="url(#uniqueGradient)"
+                                        strokeWidth={3}
+                                        dot={{ fill: '#10B981', r: 5, strokeWidth: 0 }}
+                                        activeDot={{ r: 7, stroke: '#10B981', strokeWidth: 2 }}
+                                        name="Unique Employees"
+                                    />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        </div>
+                    )}
+                </div>
 
 
-              {/* Employee Bar Chart - Modern */}
-<div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 mb-8 p-6">
-    <div className="mb-4">
-        <h3 className="text-xl font-semibold text-white">Attendance by Employee</h3>
-        <p className="text-sm text-gray-400">Present and late breakdown for each employee</p>
-    </div>
-    {barData.length === 0 ? (
-        <div className="py-16 text-center text-gray-400">No data for selected filters.</div>
-    ) : (
-        <div className="h-96">
-            <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={barData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                    <defs>
-                        {/* Gradient for Present bars */}
-                        <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#10B981" stopOpacity={0.9}/>
-                            <stop offset="100%" stopColor="#059669" stopOpacity={0.9}/>
-                        </linearGradient>
-                        {/* Gradient for Late bars */}
-                        <linearGradient id="lateGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#FBBF24" stopOpacity={0.9}/>
-                            <stop offset="100%" stopColor="#F59E0B" stopOpacity={0.9}/>
-                        </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.5} />
-                    <XAxis
-                        dataKey="name"
-                        stroke="#9CA3AF"
-                        tick={{ fill: '#9CA3AF', fontSize: 12 }}
-                        interval={0}
-                    />
-                    <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                    <Tooltip
-                        contentStyle={{
-                            backgroundColor: 'rgba(31, 41, 55, 0.9)',
-                            backdropFilter: 'blur(8px)',
-                            borderColor: '#374151',
-                            borderRadius: '0.75rem',
-                            color: '#F9FAFB',
-                            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                        }}
-                        labelStyle={{ color: '#F9FAFB', fontWeight: 600 }}
-                        itemStyle={{ color: '#D1D5DB' }}
-                    />
-                    <Legend
-                        wrapperStyle={{ color: '#9CA3AF', paddingTop: 10 }}
-                        iconType="circle"
-                        iconSize={10}
-                    />
-                    <Bar
-                        dataKey="Present"
-                        stackId="a"
-                        fill="url(#presentGradient)"
-                        radius={[8, 8, 0, 0]}
-                        maxBarSize={60}
-                    />
-                    <Bar
-                        dataKey="Late"
-                        stackId="a"
-                        fill="url(#lateGradient)"
-                        radius={[8, 8, 0, 0]}
-                        maxBarSize={60}
-                    />
-                </BarChart>
-            </ResponsiveContainer>
-        </div>
-    )}
-</div>
 
-                {/* Department Section (Pie + Table) */}
+                {/* Department Section (Pie + Table) – unchanged */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
                     {/* Pie Chart */}
                     <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
@@ -393,70 +329,202 @@ export default function Dashboard({
                     </div>
                 </div>
 
-               {/* Per‑Location Employee Participation */}
-<div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 mb-8">
-    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
-        <h3 className="text-xl font-semibold text-white">Employee Participation by Location</h3>
-        <div className="mt-2 sm:mt-0">
-            <select
-                value={selectedLocationId}
-                onChange={(e) => setSelectedLocationId(Number(e.target.value))}
-                className="bg-gray-700 border border-gray-600 rounded-xl px-4 py-2 text-white focus:ring-2 focus:ring-green-500"
-            >
-                {locations.map(loc => (
-                    <option key={loc.id} value={loc.id}>{loc.name}</option>
-                ))}
-            </select>
-        </div>
-    </div>
-    <p className="text-sm text-gray-400 mb-4">
-        Top 10 employees by attendance count at the selected location.
-    </p>
-    {currentLocationData.length === 0 ? (
-        <div className="py-12 text-center text-gray-400">No attendance records for this location.</div>
-    ) : (
-        <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={currentLocationData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
-                <defs>
-                    {/* Gradient for bars */}
-                    <linearGradient id="participationGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9}/>
-                        <stop offset="100%" stopColor="#2563EB" stopOpacity={0.9}/>
-                    </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.5} />
-                <XAxis
-                    dataKey="name"
-                    stroke="#9CA3AF"
-                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
-                    interval={0}
-                />
-                <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
-                <Tooltip
-                    contentStyle={{
-                        backgroundColor: 'rgba(31, 41, 55, 0.9)',
-                        backdropFilter: 'blur(8px)',
-                        borderColor: '#374151',
-                        borderRadius: '0.75rem',
-                        color: '#F9FAFB',
-                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
-                    }}
-                    labelStyle={{ color: '#F9FAFB', fontWeight: 600 }}
-                    itemStyle={{ color: '#D1D5DB' }}
-                />
-                <Legend wrapperStyle={{ color: '#9CA3AF', paddingTop: 10 }} />
-                <Bar
-                    dataKey="total"
-                    fill="url(#participationGradient)"
-                    radius={[8, 8, 0, 0]}
-                    maxBarSize={60}
-                    name="Attendances"
-                />
-            </BarChart>
-        </ResponsiveContainer>
-    )}
-</div>
-                {/* Attendance Negligence Report */}
+                {/* Per‑Location Employee Participation (unchanged) */}
+                <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 mb-8">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+                        <h3 className="text-xl font-semibold text-white">Employee Participation by Location</h3>
+                        <div className="mt-2 sm:mt-0">
+                            <select
+                                value={selectedLocationId}
+                                onChange={(e) => setSelectedLocationId(Number(e.target.value))}
+                                className="bg-gray-700 border border-gray-600 rounded-xl px-4 py-2 text-white focus:ring-2 focus:ring-green-500"
+                            >
+                                {locations.map(loc => (
+                                    <option key={loc.id} value={loc.id}>{loc.name}</option>
+                                ))}
+                            </select>
+                        </div>
+                    </div>
+                    <p className="text-sm text-gray-400 mb-4">
+                        Top 10 employees by attendance count at the selected location.
+                    </p>
+                    {currentLocationData.length === 0 ? (
+                        <div className="py-12 text-center text-gray-400">No attendance records for this location.</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={currentLocationData} margin={{ top: 20, right: 30, left: 0, bottom: 5 }}>
+                                <defs>
+                                    <linearGradient id="participationGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.9}/>
+                                        <stop offset="100%" stopColor="#2563EB" stopOpacity={0.9}/>
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.5} />
+                                <XAxis
+                                    dataKey="name"
+                                    stroke="#9CA3AF"
+                                    tick={{ fill: '#9CA3AF', fontSize: 12 }}
+                                    interval={0}
+                                />
+                                <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF', fontSize: 12 }} />
+                                <Tooltip
+                                    contentStyle={{
+                                        backgroundColor: 'rgba(31, 41, 55, 0.9)',
+                                        backdropFilter: 'blur(8px)',
+                                        borderColor: '#374151',
+                                        borderRadius: '0.75rem',
+                                        color: '#F9FAFB',
+                                        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5)',
+                                    }}
+                                    labelStyle={{ color: '#F9FAFB', fontWeight: 600 }}
+                                    itemStyle={{ color: '#D1D5DB' }}
+                                />
+                                <Legend wrapperStyle={{ color: '#9CA3AF', paddingTop: 10 }} />
+                                <Bar
+                                    dataKey="total"
+                                    fill="url(#participationGradient)"
+                                    radius={[8, 8, 0, 0]}
+                                    maxBarSize={60}
+                                    name="Attendances"
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
+                </div>
+
+                {/* ===== NEW VISUAL REPORTS ===== */}
+
+                {/* Row 1: Monthly Trend & Status Distribution */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+                        <h3 className="text-xl font-semibold text-white mb-2">Monthly Attendance Trend</h3>
+                        <p className="text-sm text-gray-400 mb-4">Total attendance per month (last 6 months)</p>
+                        {monthlyTrend.length === 0 ? (
+                            <div className="py-12 text-center text-gray-400">No data</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <LineChart data={monthlyTrend} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.3} />
+                                    <XAxis dataKey="month" stroke="#9CA3AF" tick={{ fill: '#9CA3AF' }} />
+                                    <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF' }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#1F2937', borderColor: '#374151', borderRadius: '0.75rem', color: '#F9FAFB' }}
+                                    />
+                                    <Line type="monotone" dataKey="total" stroke="#3B82F6" strokeWidth={2} dot={{ fill: '#3B82F6', r: 4 }} name="Attendances" />
+                                </LineChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+
+                    <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+                        <h3 className="text-xl font-semibold text-white mb-2">Attendance Status</h3>
+                        <p className="text-sm text-gray-400 mb-4">Present vs Late breakdown</p>
+                        {statusDistribution.every(d => d.value === 0) ? (
+                            <div className="py-12 text-center text-gray-400">No data</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <PieChart>
+                                    <Pie
+                                        data={statusDistribution}
+                                        cx="50%"
+                                        cy="50%"
+                                        labelLine={false}
+                                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                                        outerRadius={80}
+                                        fill="#8884d8"
+                                        dataKey="value"
+                                    >
+                                        {statusDistribution.map((entry, index) => (
+                                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                        ))}
+                                    </Pie>
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#1F2937', borderColor: '#374151', borderRadius: '0.75rem', color: '#F9FAFB' }}
+                                    />
+                                </PieChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+                </div>
+
+                {/* Row 2: Day-of-Week Pattern & Location Participation Rate */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+                        <h3 className="text-xl font-semibold text-white mb-2">Day of Week Pattern</h3>
+                        <p className="text-sm text-gray-400 mb-4">Attendance distribution by day</p>
+                        {dayOfWeekPattern.length === 0 ? (
+                            <div className="py-12 text-center text-gray-400">No data</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <BarChart data={dayOfWeekPattern} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.3} />
+                                    <XAxis dataKey="day" stroke="#9CA3AF" tick={{ fill: '#9CA3AF' }} />
+                                    <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF' }} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#1F2937', borderColor: '#374151', borderRadius: '0.75rem', color: '#F9FAFB' }}
+                                    />
+                                    <Bar dataKey="attendance" fill="#10B981" radius={[4, 4, 0, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+
+                    <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
+                        <h3 className="text-xl font-semibold text-white mb-2">Location Participation Rate</h3>
+                        <p className="text-sm text-gray-400 mb-4">% of employees who attended each location</p>
+                        {locationParticipationRate.length === 0 ? (
+                            <div className="py-12 text-center text-gray-400">No data</div>
+                        ) : (
+                            <ResponsiveContainer width="100%" height={250}>
+                                <BarChart
+                                    data={locationParticipationRate}
+                                    layout="vertical"
+                                    margin={{ top: 5, right: 20, left: 60, bottom: 5 }}
+                                >
+                                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.3} />
+                                    <XAxis type="number" stroke="#9CA3AF" tick={{ fill: '#9CA3AF' }} domain={[0, 100]} />
+                                    <YAxis type="category" dataKey="location" stroke="#9CA3AF" tick={{ fill: '#9CA3AF' }} width={80} />
+                                    <Tooltip
+                                        contentStyle={{ backgroundColor: '#1F2937', borderColor: '#374151', borderRadius: '0.75rem', color: '#F9FAFB' }}
+                                        formatter={(value) => `${value}%`}
+                                    />
+                                    <Bar dataKey="rate" fill="#8B5CF6" radius={[0, 4, 4, 0]} />
+                                </BarChart>
+                            </ResponsiveContainer>
+                        )}
+                    </div>
+                </div>
+
+                {/* Row 3: Month-over-Month Comparison (full width) */}
+                <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6 mb-8">
+                    <h3 className="text-xl font-semibold text-white mb-2">Month-over-Month Comparison</h3>
+                    <p className="text-sm text-gray-400 mb-4">Current month vs previous month attendance per location</p>
+                    {monthlyComparison.length === 0 ? (
+                        <div className="py-12 text-center text-gray-400">No data</div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height={300}>
+                            <BarChart data={monthlyComparison} margin={{ top: 5, right: 20, left: 0, bottom: 60 }}>
+                                <CartesianGrid strokeDasharray="3 3" stroke="#374151" strokeOpacity={0.3} />
+                                <XAxis
+                                    dataKey="location"
+                                    stroke="#9CA3AF"
+                                    tick={{ fill: '#9CA3AF', angle: -45, textAnchor: 'end' }}
+                                    height={60}
+                                    interval={0}
+                                />
+                                <YAxis stroke="#9CA3AF" tick={{ fill: '#9CA3AF' }} />
+                                <Tooltip
+                                    contentStyle={{ backgroundColor: '#1F2937', borderColor: '#374151', borderRadius: '0.75rem', color: '#F9FAFB' }}
+                                />
+                                <Legend wrapperStyle={{ color: '#9CA3AF' }} />
+                                <Bar dataKey="current_month" fill="#3B82F6" name="Current Month" />
+                                <Bar dataKey="previous_month" fill="#9CA3AF" name="Previous Month" />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
+                </div>
+
+                {/* Attendance Negligence Report (unchanged) */}
                 <div className="bg-gray-800/70 backdrop-blur-sm rounded-2xl border border-gray-700 p-6">
                     <h3 className="text-xl font-semibold text-white mb-4">Attendance Negligence Report</h3>
                     <p className="text-sm text-gray-400 mb-4">
@@ -572,22 +640,22 @@ export default function Dashboard({
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 text-sm">
-                                               <button
-    onClick={() => window.open(
-        route('hr.employees.memo', {
-            user: emp.id,
-            start: data.absence_start_date,
-            end: data.absence_end_date,
-            total_active: totalActiveLocations,
-            attendance_count: emp.attendance_count,
-            percentage: emp.percentage
-        }),
-        '_blank'
-    )}
-    className="text-blue-400 hover:text-blue-300"
->
-    Generate Memo
-</button>
+                                                <button
+                                                    onClick={() => window.open(
+                                                        route('hr.employees.memo', {
+                                                            user: emp.id,
+                                                            start: data.absence_start_date,
+                                                            end: data.absence_end_date,
+                                                            total_active: totalActiveLocations,
+                                                            attendance_count: emp.attendance_count,
+                                                            percentage: emp.percentage
+                                                        }),
+                                                        '_blank'
+                                                    )}
+                                                    className="text-blue-400 hover:text-blue-300"
+                                                >
+                                                    Generate Memo
+                                                </button>
                                             </td>
                                         </tr>
                                     ))
@@ -623,4 +691,3 @@ export default function Dashboard({
         </HRLayout>
     );
 }
-

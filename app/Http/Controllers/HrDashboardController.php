@@ -58,152 +58,221 @@ class HrDashboardController extends Controller
     }
 
     public function index(Request $request)
-    {
-        // Main attendance records query (for charts)
-        $query = AttendanceRecord::with('user.department', 'location')->orderBy('attendance_timestamp', 'desc');
+{
+    // Main attendance records query (for charts)
+    $query = AttendanceRecord::with('user.department', 'location')->orderBy('attendance_timestamp', 'desc');
 
-        if ($request->filled('employee_id')) {
-            $query->where('user_id', $request->employee_id);
-        }
-        if ($request->filled('date')) {
-            $query->whereDate('attendance_timestamp', $request->date);
-        }
+    if ($request->filled('employee_id')) {
+        $query->where('user_id', $request->employee_id);
+    }
+    if ($request->filled('date')) {
+        $query->whereDate('attendance_timestamp', $request->date);
+    }
 
-        $attendanceRecords = $query->get();
+    $attendanceRecords = $query->get();
 
-        // Employee summary (for bar chart)
-        $employeeSummary = $attendanceRecords->groupBy('user_id')->map(function ($records, $userId) {
-            $user = $records->first()->user;
-            return [
-                'user_id'    => $userId,
-                'name'       => $user->name ?? 'Unknown',
-                'department' => $user->department->name ?? 'No Department',
-                'total'      => $records->count(),
-                'late'       => $records->where('status', 'late')->count(),
-            ];
-        })->values();
-
-        // Department summary (for pie chart and table)
-        $departmentSummary = $attendanceRecords->groupBy(function ($record) {
-            return $record->user->department->name ?? 'No Department';
-        })->map(function ($records, $deptName) {
-            return [
-                'department' => $deptName,
-                'total'      => $records->count(),
-                'late'       => $records->where('status', 'late')->count(),
-            ];
-        })->values();
-
-        // Location attendance summary (NEW)
-        $locationAttendanceSummary = $attendanceRecords->groupBy('location_id')->map(function ($records, $locId) {
-            $location = $records->first()->location;
-            return [
-                'location_id'      => $locId,
-                'name'             => $location->name ?? 'Unknown',
-                'total_attendance' => $records->count(),
-                'unique_employees' => $records->pluck('user_id')->unique()->count(),
-            ];
-        })->values()->sortByDesc('total_attendance')->values();
-
-        // Employees for filter dropdown
-        $employees = User::where('role', 'employee')->get(['id', 'name']);
-
-        // Locations for dropdown
-        $locations = Location::orderBy('name')->get(['id', 'name']);
-
-        // Per‑location employee participation (top 10 per location)
-        $locationEmployeeSummary = [];
-        foreach ($locations as $loc) {
-            $topEmployees = AttendanceRecord::where('location_id', $loc->id)
-                ->with('user')
-                ->select('user_id', DB::raw('count(*) as total'))
-                ->groupBy('user_id')
-                ->orderBy('total', 'desc')
-                ->limit(10)
-                ->get()
-                ->map(fn($r) => [
-                    'name' => $r->user->name,
-                    'total' => $r->total,
-                ]);
-            $locationEmployeeSummary[$loc->id] = $topEmployees;
-        }
-
-        // Overall stats
-        $stats = [
-            'totalEmployees'  => User::where('role', 'employee')->count(),
-            'totalAttendance' => AttendanceRecord::count(),
-            'todayAttendance' => AttendanceRecord::whereDate('attendance_timestamp', today())->count(),
+    // Employee summary (for bar chart)
+    $employeeSummary = $attendanceRecords->groupBy('user_id')->map(function ($records, $userId) {
+        $user = $records->first()->user;
+        return [
+            'user_id'    => $userId,
+            'name'       => $user->name ?? 'Unknown',
+            'department' => $user->department->name ?? 'No Department',
+            'total'      => $records->count(),
+            'late'       => $records->where('status', 'late')->count(),
         ];
+    })->values();
 
-        // Departments for absence filter
-        $departments = Department::orderBy('name')->get(['id', 'name']);
+    // Department summary (for pie chart and table)
+    $departmentSummary = $attendanceRecords->groupBy(function ($record) {
+        return $record->user->department->name ?? 'No Department';
+    })->map(function ($records, $deptName) {
+        return [
+            'department' => $deptName,
+            'total'      => $records->count(),
+            'late'       => $records->where('status', 'late')->count(),
+        ];
+    })->values();
 
-        // Absence report filters
-        $absenceStart = $request->input('absence_start_date', Carbon::now('Asia/Manila')->startOfMonth()->toDateString());
-        $absenceEnd   = $request->input('absence_end_date', Carbon::now('Asia/Manila')->endOfMonth()->toDateString());
-        $absenceDeptId = $request->input('absence_department_id');
+    // Location attendance summary (existing)
+    $locationAttendanceSummary = $attendanceRecords->groupBy('location_id')->map(function ($records, $locId) {
+        $location = $records->first()->location;
+        return [
+            'location_id'      => $locId,
+            'name'             => $location->name ?? 'Unknown',
+            'total_attendance' => $records->count(),
+            'unique_employees' => $records->pluck('user_id')->unique()->count(),
+        ];
+    })->values()->sortByDesc('total_attendance')->values();
 
-        // Get total active locations in this period
-        $activeLocationIds = $this->getActiveLocationIdsInRange($absenceStart, $absenceEnd);
-        $totalActiveLocations = count($activeLocationIds);
+    // Employees for filter dropdown
+    $employees = User::where('role', 'employee')->get(['id', 'name']);
 
-        // Build attendance counts within date range
-        $attendanceQuery = AttendanceRecord::whereBetween('attendance_timestamp', [$absenceStart, $absenceEnd]);
-        if ($absenceDeptId) {
-            $attendanceQuery->whereHas('user', function ($q) use ($absenceDeptId) {
-                $q->where('department_id', $absenceDeptId);
-            });
-        }
+    // Locations for dropdown
+    $locations = Location::orderBy('name')->get(['id', 'name']);
 
-        $attendanceCounts = $attendanceQuery
+    // Per‑location employee participation (top 10 per location)
+    $locationEmployeeSummary = [];
+    foreach ($locations as $loc) {
+        $topEmployees = AttendanceRecord::where('location_id', $loc->id)
+            ->with('user')
             ->select('user_id', DB::raw('count(*) as total'))
             ->groupBy('user_id')
+            ->orderBy('total', 'desc')
+            ->limit(10)
             ->get()
-            ->keyBy('user_id');
-
-        // All employees (optionally filtered by department)
-        $employeesQuery = User::where('role', 'employee')->with('department');
-        if ($absenceDeptId) {
-            $employeesQuery->where('department_id', $absenceDeptId);
-        }
-        $allEmployees = $employeesQuery->get(['id', 'name', 'department_id']);
-
-        // Build absence report: each employee with attendance count (0 if none)
-        $absenceReport = $allEmployees->map(function ($emp) use ($attendanceCounts, $totalActiveLocations) {
-            $count = $attendanceCounts[$emp->id]->total ?? 0;
-            $percentage = $totalActiveLocations > 0 ? round(($count / $totalActiveLocations) * 100, 1) : 0;
-            return [
-                'id'               => $emp->id,
-                'name'             => $emp->name,
-                'department'       => $emp->department->name ?? 'No Department',
-                'attendance_count' => $count,
-                'percentage'       => $percentage,
-            ];
-        })->filter(function ($emp) use ($totalActiveLocations) {
-            // Only include employees with percentage < 50%, and only if there are active locations
-            return $totalActiveLocations > 0 && $emp['percentage'] < 50;
-        })->sortBy('percentage')->values();
-
-        return Inertia::render('HR/Dashboard', [
-            'employeeSummary'          => $employeeSummary,
-            'departmentSummary'        => $departmentSummary,
-            'locationAttendanceSummary'=> $locationAttendanceSummary, // new
-            'employees'                => $employees,
-            'filters'                  => $request->only(['employee_id', 'date']),
-            'stats'                    => $stats,
-            'locations'                => $locations,
-            'locationEmployeeSummary'  => $locationEmployeeSummary,
-            'departments'              => $departments,
-            'absenceReport'            => $absenceReport,
-            'totalActiveLocations'     => $totalActiveLocations,
-            'absenceFilters'           => [
-                'start_date'    => $absenceStart,
-                'end_date'      => $absenceEnd,
-                'department_id' => $absenceDeptId,
-            ],
-        ]);
-
+            ->map(fn($r) => [
+                'name' => $r->user->name,
+                'total' => $r->total,
+            ]);
+        $locationEmployeeSummary[$loc->id] = $topEmployees;
     }
+
+    // Overall stats
+    $totalEmployees = User::where('role', 'employee')->count();
+    $stats = [
+        'totalEmployees'  => $totalEmployees,
+        'totalAttendance' => AttendanceRecord::count(),
+        'todayAttendance' => AttendanceRecord::whereDate('attendance_timestamp', today())->count(),
+    ];
+
+    // Departments for absence filter
+    $departments = Department::orderBy('name')->get(['id', 'name']);
+
+    // Absence report filters
+    $absenceStart = $request->input('absence_start_date', Carbon::now('Asia/Manila')->startOfMonth()->toDateString());
+    $absenceEnd   = $request->input('absence_end_date', Carbon::now('Asia/Manila')->endOfMonth()->toDateString());
+    $absenceDeptId = $request->input('absence_department_id');
+
+    // Get total active locations in this period
+    $activeLocationIds = $this->getActiveLocationIdsInRange($absenceStart, $absenceEnd);
+    $totalActiveLocations = count($activeLocationIds);
+
+    // Build attendance counts within date range
+    $attendanceQuery = AttendanceRecord::whereBetween('attendance_timestamp', [$absenceStart, $absenceEnd]);
+    if ($absenceDeptId) {
+        $attendanceQuery->whereHas('user', function ($q) use ($absenceDeptId) {
+            $q->where('department_id', $absenceDeptId);
+        });
+    }
+
+    $attendanceCounts = $attendanceQuery
+        ->select('user_id', DB::raw('count(*) as total'))
+        ->groupBy('user_id')
+        ->get()
+        ->keyBy('user_id');
+
+    // All employees (optionally filtered by department)
+    $employeesQuery = User::where('role', 'employee')->with('department');
+    if ($absenceDeptId) {
+        $employeesQuery->where('department_id', $absenceDeptId);
+    }
+    $allEmployees = $employeesQuery->get(['id', 'name', 'department_id']);
+
+    // Build absence report: each employee with attendance count (0 if none)
+    $absenceReport = $allEmployees->map(function ($emp) use ($attendanceCounts, $totalActiveLocations) {
+        $count = $attendanceCounts[$emp->id]->total ?? 0;
+        $percentage = $totalActiveLocations > 0 ? round(($count / $totalActiveLocations) * 100, 1) : 0;
+        return [
+            'id'               => $emp->id,
+            'name'             => $emp->name,
+            'department'       => $emp->department->name ?? 'No Department',
+            'attendance_count' => $count,
+            'percentage'       => $percentage,
+        ];
+    })->filter(function ($emp) use ($totalActiveLocations) {
+        // Only include employees with percentage < 50%, and only if there are active locations
+        return $totalActiveLocations > 0 && $emp['percentage'] < 50;
+    })->sortBy('percentage')->values();
+
+    // ------------------------------------------------------------------
+    // NEW VISUAL REPORTS (computed from $attendanceRecords)
+    // ------------------------------------------------------------------
+
+    // 1. Monthly Attendance Trend (last 6 months)
+    $monthlyTrend = $attendanceRecords->groupBy(function ($record) {
+        return $record->attendance_timestamp->format('Y-m');
+    })->map(function ($records, $month) {
+        return [
+            'month' => Carbon::createFromFormat('Y-m', $month)->format('M Y'),
+            'total' => $records->count(),
+        ];
+    })->values()
+      ->sortBy('month')
+      ->values()
+      ->take(-6);
+
+    // 2. Status Distribution (Present vs Late)
+    $statusDistribution = [
+        ['name' => 'Present', 'value' => $attendanceRecords->where('status', 'present')->count()],
+        ['name' => 'Late', 'value' => $attendanceRecords->where('status', 'late')->count()],
+    ];
+
+    // 3. Day-of-Week Pattern
+    $dayOrder = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+    $dayOfWeekPattern = $attendanceRecords->groupBy(function ($record) {
+        return $record->attendance_timestamp->format('l');
+    })->map(function ($records, $day) {
+        return ['day' => $day, 'attendance' => $records->count()];
+    })->values()
+      ->sortBy(function ($item) use ($dayOrder) {
+          return array_search($item['day'], $dayOrder);
+      })->values();
+
+    // 4. Location Participation Rate (% of employees who attended each location)
+    $locationParticipationRate = $attendanceRecords->groupBy('location_id')->map(function ($records, $locId) use ($totalEmployees, $locations) {
+        $locationName = $locations->firstWhere('id', $locId)?->name ?? 'Unknown';
+        $uniqueEmployees = $records->pluck('user_id')->unique()->count();
+        $rate = $totalEmployees > 0 ? round(($uniqueEmployees / $totalEmployees) * 100, 1) : 0;
+        return ['location' => $locationName, 'rate' => $rate];
+    })->values()->sortByDesc('rate')->values();
+
+    // 5. Month-over-Month Comparison (current month vs previous month per location)
+    $currentMonth = Carbon::now('Asia/Manila')->startOfMonth();
+    $previousMonth = $currentMonth->copy()->subMonth();
+    $monthlyComparison = $attendanceRecords->groupBy('location_id')->map(function ($records, $locId) use ($currentMonth, $previousMonth, $locations) {
+        $locationName = $locations->firstWhere('id', $locId)?->name ?? 'Unknown';
+        $currentMonthCount = $records->filter(function ($record) use ($currentMonth) {
+            return $record->attendance_timestamp->format('Y-m') === $currentMonth->format('Y-m');
+        })->count();
+        $previousMonthCount = $records->filter(function ($record) use ($previousMonth) {
+            return $record->attendance_timestamp->format('Y-m') === $previousMonth->format('Y-m');
+        })->count();
+        return [
+            'location' => $locationName,
+            'current_month' => $currentMonthCount,
+            'previous_month' => $previousMonthCount,
+        ];
+    })->values()->sortByDesc('current_month')->values();
+
+    // ------------------------------------------------------------------
+
+    return Inertia::render('HR/Dashboard', [
+        'employeeSummary'          => $employeeSummary,
+        'departmentSummary'        => $departmentSummary,
+        'locationAttendanceSummary'=> $locationAttendanceSummary,
+        'employees'                => $employees,
+        'filters'                  => $request->only(['employee_id', 'date']),
+        'stats'                    => $stats,
+        'locations'                => $locations,
+        'locationEmployeeSummary'  => $locationEmployeeSummary,
+        'departments'              => $departments,
+        'absenceReport'            => $absenceReport,
+        'totalActiveLocations'     => $totalActiveLocations,
+        'absenceFilters'           => [
+            'start_date'    => $absenceStart,
+            'end_date'      => $absenceEnd,
+            'department_id' => $absenceDeptId,
+        ],
+        // New reports
+        'monthlyTrend'             => $monthlyTrend,
+        'statusDistribution'       => $statusDistribution,
+        'dayOfWeekPattern'         => $dayOfWeekPattern,
+        'locationParticipationRate'=> $locationParticipationRate,
+        'monthlyComparison'        => $monthlyComparison,
+        'totalEmployees'           => $totalEmployees,
+    ]);
+}
 
 
 public function export(Request $request)
