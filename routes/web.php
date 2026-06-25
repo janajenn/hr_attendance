@@ -63,10 +63,12 @@ Route::middleware(['auth'])->group(function () {
             Route::get('/locations/{location}/attendance', [\App\Http\Controllers\Hr\LocationController::class, 'attendance'])->name('locations.attendance');
 
              Route::get('/employee-attendance-overview', [HrDashboardController::class, 'employeeOverview'])->name('employee.attendance.overview');
-    Route::get('/employee-attendance-details/{user}', [HrDashboardController::class, 'employeeAttendanceDetails'])->name('employee.attendance.details');
-Route::get('/employee-attendance/{user}', [HrDashboardController::class, 'showEmployeeAttendance'])->name('employee.attendance.show');
+        Route::get('/employee-attendance-details/{user}', [HrDashboardController::class, 'employeeAttendanceDetails'])->name('employee.attendance.details');
+        Route::get('/employee-attendance/{user}', [HrDashboardController::class, 'showEmployeeAttendance'])->name('employee.attendance.show');
 
-Route::get('/qr/{token}', function ($token) {
+        Route::get('/employees/export-credentials', [\App\Http\Controllers\Hr\EmployeeController::class, 'exportCredentials'])->name('employees.export-credentials');
+
+        Route::get('/qr/{token}', function ($token) {
     try {
         $location = \App\Models\Location::where('qr_code_token', $token)->firstOrFail();
 
@@ -112,6 +114,9 @@ Route::post('/locations/{location}/deactivate', [\App\Http\Controllers\Hr\Locati
 
 
 Route::get('/employees/{user}/memo', [\App\Http\Controllers\Hr\EmployeeController::class, 'memo'])->name('employees.memo');
+
+
+
 
 Route::get('/locations/{location}/attendance/duplicates', [\App\Http\Controllers\Hr\LocationController::class, 'checkDuplicates'])->name('locations.attendance.duplicates');
 Route::delete('/locations/{location}/attendance/duplicates', [\App\Http\Controllers\Hr\LocationController::class, 'resolveDuplicates'])->name('locations.attendance.duplicates.resolve');

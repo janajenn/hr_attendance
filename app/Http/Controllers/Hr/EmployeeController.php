@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 
@@ -190,4 +191,31 @@ class EmployeeController extends Controller
             'percentage' => $percentage,
         ]);
     }
+
+
+
+    public function exportCredentials()
+{
+    // Fetch all employees with department, ordered by department then name
+    $employees = User::where('role', 'employee')
+        ->with('department')
+        ->orderBy('department_id')
+        ->orderBy('name')
+        ->get();
+
+    // Group by department name
+    $grouped = $employees->groupBy(function ($emp) {
+        return $emp->department->name ?? 'No Department';
+    });
+
+    // Sort groups alphabetically
+    $grouped = $grouped->sortKeys();
+
+    $pdf = Pdf::loadView('pdf.employee-credentials', [
+        'grouped' => $grouped,
+        'generated_at' => now(),
+    ]);
+
+    return $pdf->download('employee_credentials_' . now()->format('Y-m-d') . '.pdf');
+}
 }

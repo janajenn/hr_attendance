@@ -107,6 +107,15 @@ export default function Index({ employees, filters }) {
                                 Search
                             </button>
                         </form>
+
+                        {/* Export Credentials Button */}
+                       <a
+    href="/hr/employees/export-credentials"
+    className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+>
+    Export Credentials
+</a>
+
                         <Link
                             href={route('hr.employees.create')}
                             className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
@@ -129,7 +138,6 @@ export default function Index({ employees, filters }) {
                         <table className="min-w-full divide-y divide-green-900/30">
                             <thead className="bg-gray-900">
                                 <tr>
-
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Photo</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Name</th>
                                     <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Department</th>
@@ -141,14 +149,13 @@ export default function Index({ employees, filters }) {
                             <tbody className="bg-gray-800 divide-y divide-green-900/30">
                                 {employees.data.length === 0 ? (
                                     <tr>
-                                        <td colSpan="7" className="px-6 py-4 text-center text-sm text-gray-400">
+                                        <td colSpan="6" className="px-6 py-4 text-center text-sm text-gray-400">
                                             No employees found.
                                         </td>
                                     </tr>
                                 ) : (
                                     employees.data.map(emp => (
                                         <tr key={emp.id} className="hover:bg-gray-700">
-
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 {emp.photo ? (
                                                     <img src={`/storage/${emp.photo}`} alt={emp.name} className="h-10 w-10 rounded-full object-cover" />
@@ -160,8 +167,8 @@ export default function Index({ employees, filters }) {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{emp.name}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
-    {emp.department_name || emp.department?.name || 'N/A'}
-</td>
+                                                {emp.department_name || emp.department?.name || 'N/A'}
+                                            </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{emp.position}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{emp.username}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">
@@ -177,7 +184,7 @@ export default function Index({ employees, filters }) {
                     </div>
                 </div>
 
-                {/* Pagination */}
+                {/* Pagination (unchanged) */}
                 {employees.links && (
                     <div className="mt-4 flex justify-center">
                         <nav className="inline-flex shadow-sm -space-x-px" aria-label="Pagination">
