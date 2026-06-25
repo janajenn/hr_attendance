@@ -16,33 +16,39 @@ class EmployeeController extends Controller
 {
     const DEFAULT_PASSWORD = 'password'; // Change this to any default you like
 
-    public function index(Request $request)
-    {
-        $query = User::where('role', 'employee')
-            ->with('department')
-            ->select(['id', 'employee_id', 'name', 'department_id', 'position', 'username', 'photo']);
+   public function index(Request $request)
+{
+    $query = User::where('role', 'employee')
+        ->leftJoin('departments', 'users.department_id', '=', 'departments.id')
+        ->select(
+            'users.id',
+            'users.employee_id',
+            'users.name',
+            'users.department_id',
+            'users.position',
+            'users.username',
+            'users.photo',
+            'departments.name as department_name'  // 👈 Use name instead of code
+        );
 
-        if ($request->has('search') && !empty($request->search)) {
-            $search = $request->search;
-            $query->where(function ($q) use ($search) {
-                $q->where('employee_id', 'like', "%{$search}%")
-                  ->orWhere('name', 'like', "%{$search}%")
-                  ->orWhere('position', 'like', "%{$search}%")
-                  ->orWhere('username', 'like', "%{$search}%")
-                  ->orWhereHas('department', function ($dq) use ($search) {
-                      $dq->where('name', 'like', "%{$search}%")
-                         ->orWhere('code', 'like', "%{$search}%");
-                  });
-            });
-        }
-
-        $employees = $query->orderBy('name')->paginate(8)->withQueryString();
-
-        return Inertia::render('HR/Employees/Index', [
-            'employees' => $employees,
-            'filters' => $request->only(['search']),
-        ]);
+    if ($request->has('search') && !empty($request->search)) {
+        $search = $request->search;
+        $query->where(function ($q) use ($search) {
+            $q->where('users.employee_id', 'like', "%{$search}%")
+              ->orWhere('users.name', 'like', "%{$search}%")
+              ->orWhere('users.position', 'like', "%{$search}%")
+              ->orWhere('users.username', 'like', "%{$search}%")
+              ->orWhere('departments.name', 'like', "%{$search}%"); // Search by department name
+        });
     }
+
+    $employees = $query->orderBy('users.name')->paginate(8)->withQueryString();
+
+    return Inertia::render('HR/Employees/Index', [
+        'employees' => $employees,
+        'filters' => $request->only(['search']),
+    ]);
+}
 
     public function create()
     {

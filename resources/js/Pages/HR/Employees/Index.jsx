@@ -159,7 +159,9 @@ export default function Index({ employees, filters }) {
                                                 )}
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{emp.name}</td>
-                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{emp.department?.code || 'N/A'}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-white">
+    {emp.department_name || emp.department?.name || 'N/A'}
+</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{emp.position}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-white">{emp.username}</td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-3">

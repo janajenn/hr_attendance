@@ -281,24 +281,63 @@ public function export(Request $request)
 /**
  * Employee attendance overview (no date range)
  */
-public function employeeOverview()
+public function employeeOverview(Request $request)
 {
-    // 1. Compute total active location-days (since first log)
+    // Filters
+    $search = $request->input('search');
+    $departmentId = $request->input('department_id');
+    $startDate = $request->input('start_date');
+    $endDate = $request->input('end_date');
+    $status = $request->input('status'); // 'present', 'late', or null
+
+    // Determine date range for active days and attendance
     $firstLog = LocationActivityLog::orderBy('changed_at')->first();
-    $start = $firstLog ? $firstLog->changed_at->copy()->startOfDay() : Carbon::now('Asia/Manila')->startOfMonth();
-    $end = Carbon::now('Asia/Manila')->endOfDay();
+    $defaultStart = $firstLog ? $firstLog->changed_at->copy()->startOfDay() : Carbon::now('Asia/Manila')->startOfMonth();
+    $defaultEnd = Carbon::now('Asia/Manila')->endOfDay();
 
-    $totalActiveDays = $this->getTotalActiveLocationDays($start, $end); // use your existing method
+    $start = $startDate ? Carbon::parse($startDate, 'Asia/Manila')->startOfDay() : $defaultStart;
+    $end = $endDate ? Carbon::parse($endDate, 'Asia/Manila')->endOfDay() : $defaultEnd;
 
-    // 2. All employees
-    $employees = User::where('role', 'employee')->with('department')->get();
+    // Build employees query
+    $employeesQuery = User::where('role', 'employee')->with('department');
 
-    // 3. Attendance counts per employee
-    $attendanceCounts = AttendanceRecord::whereBetween('attendance_timestamp', [$start, $end])
+    if ($search) {
+        $employeesQuery->where(function ($q) use ($search) {
+            $q->where('name', 'like', "%{$search}%")
+              ->orWhereHas('department', function ($dq) use ($search) {
+                  $dq->where('name', 'like', "%{$search}%");
+              });
+        });
+    }
+
+    if ($departmentId) {
+        $employeesQuery->where('department_id', $departmentId);
+    }
+
+    $employees = $employeesQuery->get();
+
+    // Build attendance query with status filter
+    $attendanceQuery = AttendanceRecord::whereBetween('attendance_timestamp', [$start, $end]);
+
+    if ($status) {
+        $attendanceQuery->where('status', $status);
+    }
+
+    // If department filter is applied, filter attendance by user's department
+    if ($departmentId) {
+        $attendanceQuery->whereHas('user', function ($q) use ($departmentId) {
+            $q->where('department_id', $departmentId);
+        });
+    }
+
+    $attendanceCounts = $attendanceQuery
         ->select('user_id', DB::raw('count(*) as total'))
         ->groupBy('user_id')
         ->get()
         ->keyBy('user_id');
+
+    // Total active days for the selected range
+    $totalActiveDays = $this->getTotalActiveLocationDays($start, $end);
 
     $overview = [];
     foreach ($employees as $emp) {
@@ -314,10 +353,19 @@ public function employeeOverview()
         ];
     }
 
+    // Get departments for filter dropdown
+    $departments = Department::orderBy('name')->get(['id', 'name']);
+
     return Inertia::render('HR/EmployeeAttendanceOverview', [
         'overview' => $overview,
+        'departments' => $departments,
+        'filters' => $request->only(['search', 'department_id', 'start_date', 'end_date', 'status']),
+        'totalActiveDays' => $totalActiveDays,
     ]);
 }
+
+
+
 
 /**
  * Get detailed attendance records for a specific employee
