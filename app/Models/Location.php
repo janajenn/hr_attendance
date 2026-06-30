@@ -21,6 +21,7 @@ class Location extends Model
          'percentage',
         'is_active',
         'qr_code_token',
+        'absent_processed',
 
     ];
 

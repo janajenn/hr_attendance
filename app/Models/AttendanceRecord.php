@@ -17,6 +17,7 @@ class AttendanceRecord extends Model
         'latitude',
         'longitude',
         'status',
+        
     ];
 
     protected $casts = [
