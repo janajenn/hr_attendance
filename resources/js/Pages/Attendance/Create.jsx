@@ -8,6 +8,7 @@ import {
     XCircleIcon,
     InformationCircleIcon,
     KeyIcon,
+    ChartBarIcon
 } from '@heroicons/react/24/outline';
 
 export default function Create() {
@@ -119,7 +120,15 @@ export default function Create() {
 
                             {/* Navigation Buttons */}
                             <div className="flex items-center gap-1 sm:gap-2">
-                                {/* History Button */}
+
+<Link
+    href={route('dashboard')}
+    className="inline-flex items-center px-2 py-1.5 sm:px-3 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition"
+>
+    <ChartBarIcon className="h-4 w-4 sm:mr-1.5" />
+    <span className="hidden sm:inline">Dashboard</span>
+</Link>
+                                                                {/* History Button */}
                                 <Link
                                     href={route('attendance.history')}
                                     className="inline-flex items-center px-2 py-1.5 sm:px-3 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-medium transition"

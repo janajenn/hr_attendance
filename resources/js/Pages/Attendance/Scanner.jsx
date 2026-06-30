@@ -27,7 +27,7 @@ export default function Scanner() {
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(imageData.data, canvas.width, canvas.height);
             if (code) {
-                // The QR code should contain the scan URL (e.g., http://yourdomain/scan/TOKEN)
+                    
                 try {
                     const url = new URL(code.data);
                     window.location.href = url.href; // redirect to the scan page

@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use App\Models\AttendanceRecord;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use App\Jobs\ProcessAttendance;
 use App\Models\Location;
 use Carbon\Carbon;
@@ -227,6 +228,8 @@ public function history(Request $request)
 
 
 
+
+
 public function scan($token)
 {
     $location = Location::where('qr_code_token', $token)->firstOrFail();
@@ -304,5 +307,99 @@ public function checkStatus(Request $request)
 
     return response()->json(['recorded' => $exists]);
 }
+
+
+public function dashboard()
+{
+    $user = auth()->user();
+    $now = Carbon::now('Asia/Manila');
+
+    // ---- Overall stats (raw DB) ----
+    $overall = DB::table('attendance_records')
+        ->where('user_id', $user->id)
+        ->selectRaw("
+            COUNT(*) as total,
+            SUM(CASE WHEN status IN ('present', 'late') THEN 1 ELSE 0 END) as attended,
+            SUM(CASE WHEN status NOT IN ('present', 'late') THEN 1 ELSE 0 END) as missed
+        ")
+        ->first();
+
+    // ---- Weekly stats ----
+    $weekStart = $now->copy()->startOfWeek();
+    $weekStats = DB::table('attendance_records')
+        ->where('user_id', $user->id)
+        ->whereBetween('attendance_timestamp', [$weekStart, $now])
+        ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status IN ('present','late') THEN 1 ELSE 0 END) as attended")
+        ->first();
+
+    // ---- Monthly stats ----
+    $monthStart = $now->copy()->startOfMonth();
+    $monthStats = DB::table('attendance_records')
+        ->where('user_id', $user->id)
+        ->whereBetween('attendance_timestamp', [$monthStart, $now])
+        ->selectRaw("COUNT(*) as total, SUM(CASE WHEN status IN ('present','late') THEN 1 ELSE 0 END) as attended")
+        ->first();
+
+    // ---- Recent 5 records (use Eloquent – fine because timestamp is selected) ----
+    $recent = AttendanceRecord::with('location')
+        ->where('user_id', $user->id)
+        ->latest('attendance_timestamp')
+        ->limit(5)
+        ->get();
+
+    // ---- Location breakdown ----
+    $locationStats = DB::table('attendance_records')
+        ->join('locations', 'attendance_records.location_id', '=', 'locations.id')
+        ->where('attendance_records.user_id', $user->id)
+        ->selectRaw('locations.id as location_id, locations.name as location_name, COUNT(*) as count')
+        ->groupBy('locations.id', 'locations.name')
+        ->get();
+
+    // ---- 7‑day chart data ----
+    $chartData = [];
+    for ($i = 6; $i >= 0; $i--) {
+        $date = $now->copy()->subDays($i);
+        $dayStart = $date->copy()->startOfDay();
+        $dayEnd = $date->copy()->endOfDay();
+
+        $records = DB::table('attendance_records')
+            ->where('user_id', $user->id)
+            ->whereBetween('attendance_timestamp', [$dayStart, $dayEnd])
+            ->get();
+
+        $present = $records->filter(fn($r) => $r->status === 'present')->count();
+        $late    = $records->filter(fn($r) => $r->status === 'late')->count();
+        $absent  = $records->filter(fn($r) => !in_array($r->status, ['present','late']))->count();
+
+        $chartData[] = [
+            'date'    => $date->format('D, M j'),
+            'present' => $present,
+            'late'    => $late,
+            'absent'  => $absent,
+        ];
+    }
+
+    // ---- Average check‑in time ----
+    $avgTime = DB::table('attendance_records')
+        ->where('user_id', $user->id)
+        ->whereIn('status', ['present', 'late'])
+        ->selectRaw("TIME_FORMAT(AVG(TIME(attendance_timestamp)), '%H:%i') as avg_time")
+        ->first();
+
+    // ---- Active location (for quick action) ----
+    $activeLocation = Location::where('is_active', true)->first();
+
+    return Inertia::render('Attendance/Dashboard', [
+        'overall'        => $overall,
+        'weekStats'      => $weekStats,
+        'monthStats'     => $monthStats,
+        'recent'         => $recent,
+        'locationStats'  => $locationStats,
+        'chartData'      => $chartData,
+        'avgTime'        => $avgTime->avg_time ?? null,
+        'activeLocation' => $activeLocation,
+    ]);
+}
+
 
 }
