@@ -20,10 +20,9 @@ class MarkAbsentAttendance extends Command
         $now = Carbon::now('Asia/Manila');
 
         // Find location windows that have ended and haven't been processed
-        $locations = Location::where('is_active', true)
-            ->where('absent_processed', false)
-            ->where('end_time', '<=', $now)
-            ->get();
+        $locations = Location::where('absent_processed', false)
+    ->where('end_time', '<=', $now)
+    ->get();
 
         if ($locations->isEmpty()) {
             $this->info('No location windows to process.');
