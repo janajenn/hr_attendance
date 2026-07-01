@@ -23,6 +23,7 @@ export default function Attendance({
     date,
     employees,
     attendedIds = [],
+    statusMap = {},
     activation,
     deactivation,
     active_on_date,
@@ -415,59 +416,170 @@ export default function Attendance({
                 </div>
             </div>
 
+{/* Modal for manual attendance */}
+{showManualModal && (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">
+        <div className="relative bg-gray-800 rounded-xl border border-white/10 p-5 max-w-xl w-full overflow-y-visible">
+            <button onClick={closeManualModal} className="absolute top-3 right-3 text-gray-400 hover:text-white transition">
+                <XMarkIcon className="h-6 w-6" />
+            </button>
+            <h3 className="text-xl font-bold text-white mb-3">Add Manual Attendance</h3>
+            <p className="text-sm text-gray-400 mb-3">
+                Add attendance for {location.name} on {new Date(selectedDate).toLocaleDateString('en-PH')}
+            </p>
+            <form onSubmit={submitManual} className="space-y-3">
+                {/* Employee search */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                        Employee <span className="text-red-400">*</span>
+                    </label>
+                    <div className="relative mb-2">
+                        <input
+                            type="text"
+                            placeholder="Search by name..."
+                            value={searchTerm}
+                            onChange={(e) => {
+                                setSearchTerm(e.target.value);
+                                setShowAll(false);
+                                if (selectedEmployeeId) {
+                                    setSelectedEmployeeId(null);
+                                    setData('employee_id', '');
+                                }
+                            }}
+                            className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white pl-10 focus:ring-2 focus:ring-purple-500"
+                        />
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    </div>
 
-            {/* Modal for manual attendance */}
-            {showManualModal && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">
-                    <div className="relative bg-gray-800 rounded-xl border border-white/10 p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
-                        <button onClick={closeManualModal} className="absolute top-4 right-4 text-gray-400 hover:text-white transition"><XMarkIcon className="h-6 w-6" /></button>
-                        <h3 className="text-xl font-bold text-white mb-4">Add Manual Attendance</h3>
-                        <p className="text-sm text-gray-400 mb-4">Add attendance for {location.name} on {new Date(selectedDate).toLocaleDateString('en-PH')}</p>
-                        <form onSubmit={submitManual} className="space-y-4">
-                            {/* Employee search */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Employee <span className="text-red-400">*</span></label>
-                                <div className="relative mb-2">
-                                    <input type="text" placeholder="Search by name..." value={searchTerm} onChange={(e) => { setSearchTerm(e.target.value); setShowAll(false); if (selectedEmployeeId) { setSelectedEmployeeId(null); setData('employee_id', ''); } }} className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white pl-10 focus:ring-2 focus:ring-purple-500" />
-                                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                                </div>
-                                <div className="bg-gray-700 rounded-lg border border-gray-600 max-h-60 overflow-y-auto">
-                                    {filteredEmployees.length === 0 ? <p className="text-gray-400 text-sm p-3">No employees found.</p> : (
-                                        <>
-                                            {(showAll ? filteredEmployees : filteredEmployees.slice(0, 5)).map(emp => (
-                                                <button key={emp.id} type="button" onClick={() => { setData('employee_id', emp.id); setSelectedEmployeeId(emp.id); setSearchTerm(emp.name); }} className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-600 transition ${selectedEmployeeId === emp.id ? 'bg-purple-600/30 text-purple-300' : 'text-white'}`}>{emp.name}</button>
-                                            ))}
-                                            {filteredEmployees.length > 5 && !showAll && <button type="button" onClick={() => setShowAll(true)} className="w-full text-left px-4 py-2 text-sm text-blue-400 hover:bg-gray-600 transition border-t border-gray-600">+ See all ({filteredEmployees.length - 5} more)</button>}
-                                            {showAll && filteredEmployees.length > 5 && <button type="button" onClick={() => setShowAll(false)} className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:bg-gray-600 transition border-t border-gray-600">Show less</button>}
-                                        </>
-                                    )}
-                                </div>
-                                <p className="text-xs text-gray-400 mt-1">Type to search. Click on a name to select.</p>
-                                {errors.employee_id && <p className="mt-1 text-sm text-red-400">{errors.employee_id}</p>}
-                            </div>
-                            {/* Status radio */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Status</label>
-                                <div className="flex gap-4">
-                                    <label className="flex items-center"><input type="radio" value="present" checked={data.status === 'present'} onChange={e => setData('status', e.target.value)} className="mr-2" /><span className="text-green-400">Present</span></label>
-                                    <label className="flex items-center"><input type="radio" value="late" checked={data.status === 'late'} onChange={e => setData('status', e.target.value)} className="mr-2" /><span className="text-yellow-400">Late</span></label>
-                                </div>
-                            </div>
-                            {/* Optional timestamp */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-1">Time (optional, defaults to now)</label>
-                                <input type="datetime-local" value={data.attendance_timestamp} onChange={e => setData('attendance_timestamp', e.target.value)} className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500" />
-                                <p className="text-xs text-gray-400 mt-1">Leave blank to use current date/time. You can set any date and time.</p>
-                            </div>
-                            <div className="flex gap-3 pt-2">
-                                <button type="submit" disabled={processing || !data.employee_id} className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition disabled:opacity-50">{processing ? 'Adding...' : 'Add Attendance'}</button>
-                                <button type="button" onClick={closeManualModal} className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition">Cancel</button>
-                            </div>
-                        </form>
+                    {/* Employee list with status badge – fixed height, scrollable internally */}
+                    <div className="bg-gray-700 rounded-lg border border-gray-600 max-h-48 overflow-y-auto">
+                        {filteredEmployees.length === 0 ? (
+                            <p className="text-gray-400 text-sm p-3">No employees found.</p>
+                        ) : (
+                            <>
+                                {(showAll ? filteredEmployees : filteredEmployees.slice(0, 5)).map((emp) => {
+                                    const status = statusMap[emp.id] || null;
+                                    return (
+                                        <button
+                                            key={emp.id}
+                                            type="button"
+                                            onClick={() => {
+                                                setData('employee_id', emp.id);
+                                                setSelectedEmployeeId(emp.id);
+                                                setSearchTerm(emp.name);
+                                            }}
+                                            className={`w-full text-left px-4 py-2 text-sm hover:bg-gray-600 transition flex items-center justify-between ${
+                                                selectedEmployeeId === emp.id
+                                                    ? 'bg-purple-600/30 text-purple-300'
+                                                    : 'text-white'
+                                            }`}
+                                        >
+                                            <span>{emp.name}</span>
+                                            {status === 'absent' && (
+                                                <span className="text-xs bg-red-500/30 text-red-300 px-2 py-0.5 rounded-full">
+                                                    Absent
+                                                </span>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                                {filteredEmployees.length > 5 && !showAll && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAll(true)}
+                                        className="w-full text-left px-4 py-2 text-sm text-blue-400 hover:bg-gray-600 transition border-t border-gray-600"
+                                    >
+                                        + See all ({filteredEmployees.length - 5} more)
+                                    </button>
+                                )}
+                                {showAll && filteredEmployees.length > 5 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAll(false)}
+                                        className="w-full text-left px-4 py-2 text-sm text-gray-400 hover:bg-gray-600 transition border-t border-gray-600"
+                                    >
+                                        Show less
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    {/* Helper notes */}
+                    <p className="text-xs text-gray-400 mt-1">
+                        Type to search. Click on a name to select.
+                    </p>
+                    <p className="text-xs text-yellow-400 mt-1">
+                        Employees marked <span className="text-red-400">Absent</span> can be updated to Present/Late.
+                    </p>
+                    {errors.employee_id && (
+                        <p className="mt-1 text-sm text-red-400">{errors.employee_id}</p>
+                    )}
+                </div>
+
+                {/* Status radio */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">Status</label>
+                    <div className="flex gap-4">
+                        <label className="flex items-center">
+                            <input
+                                type="radio"
+                                value="present"
+                                checked={data.status === 'present'}
+                                onChange={(e) => setData('status', e.target.value)}
+                                className="mr-2"
+                            />
+                            <span className="text-green-400">Present</span>
+                        </label>
+                        <label className="flex items-center">
+                            <input
+                                type="radio"
+                                value="late"
+                                checked={data.status === 'late'}
+                                onChange={(e) => setData('status', e.target.value)}
+                                className="mr-2"
+                            />
+                            <span className="text-yellow-400">Late</span>
+                        </label>
                     </div>
                 </div>
-            )}
 
+                {/* Optional timestamp */}
+                <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-1">
+                        Time (optional, defaults to now)
+                    </label>
+                    <input
+                        type="datetime-local"
+                        value={data.attendance_timestamp}
+                        onChange={(e) => setData('attendance_timestamp', e.target.value)}
+                        className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-purple-500"
+                    />
+                    <p className="text-xs text-gray-400 mt-1">
+                        Leave blank to use current date/time. You can set any date and time.
+                    </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                    <button
+                        type="submit"
+                        disabled={processing || !data.employee_id}
+                        className="px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition disabled:opacity-50"
+                    >
+                        {processing ? 'Adding...' : 'Add Attendance'}
+                    </button>
+                    <button
+                        type="button"
+                        onClick={closeManualModal}
+                        className="px-6 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+)}
             {/* Modal for absentees */}
             {showAbsentModal && absentData && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black bg-opacity-75">

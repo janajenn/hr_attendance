@@ -259,7 +259,8 @@ public function attendance(Request $request, Location $location)
     });
 
     $employees = User::where('role', 'employee')->orderBy('name')->get(['id', 'name', 'department_id']);
-    $attendedIds = $records->pluck('user_id')->toArray();
+    $attendedIds = $records->whereIn('status', ['present', 'late'])->pluck('user_id')->toArray();
+    $statusMap = $records->pluck('status', 'user_id')->toArray();
 
     // --- DUPLICATE DETECTION ---
     $duplicates = [];
@@ -282,6 +283,7 @@ public function attendance(Request $request, Location $location)
         'date' => $date,
         'employees' => $employees,
         'attendedIds' => $attendedIds,
+        'statusMap'   => $statusMap, // add this
         'activation' => $activation,
         'deactivation' => $deactivation,
         'active_on_date' => $activeOnDate,
@@ -304,17 +306,27 @@ public function manualAttendance(Request $request, Location $location)
 
     $dateToCheck = $timestamp->toDateString();
 
-    // Duplicate check
+    // Find existing record for this user/location/date
     $existing = AttendanceRecord::where('user_id', $request->employee_id)
         ->where('location_id', $location->id)
         ->whereDate('attendance_timestamp', $dateToCheck)
-        ->exists();
+        ->first();
 
     if ($existing) {
-        return back()->withErrors(['employee' => 'This employee already has attendance for this date.']);
+        // If the existing record is 'absent', we can update it
+        if ($existing->status === 'absent') {
+            $existing->status = $request->status;
+            $existing->attendance_timestamp = $timestamp;
+            $existing->photo_path = null; // optional
+            $existing->save();
+            return redirect()->back()->with('success', 'Absent record updated to ' . $request->status);
+        } else {
+            // Already present/late – reject
+            return back()->withErrors(['employee' => 'This employee already has an attendance record for this date.']);
+        }
     }
 
-    // Direct insert (synchronous)
+    // No record – create new
     AttendanceRecord::create([
         'user_id' => $request->employee_id,
         'location_id' => $location->id,
@@ -403,29 +415,31 @@ public function absentees(Request $request, Location $location)
 {
     $date = $request->query('date', Carbon::now('Asia/Manila')->toDateString());
 
-    // Get all employees (only role = 'employee')
+    // All employees
     $allEmployees = User::where('role', 'employee')
         ->with('department')
         ->orderBy('name')
         ->get(['id', 'name', 'department_id']);
 
-    // Get IDs of employees who have attendance at this location on the given date
+    // IDs of employees who have a present/late record on this date
     $presentIds = AttendanceRecord::where('location_id', $location->id)
         ->whereDate('attendance_timestamp', $date)
+        ->whereIn('status', ['present', 'late']) // 👈 key change
         ->pluck('user_id')
         ->toArray();
 
-    // Absent employees = all employees not in presentIds
+    // Absent = all employees NOT in presentIds
     $absentEmployees = $allEmployees->reject(function ($employee) use ($presentIds) {
         return in_array($employee->id, $presentIds);
-    })->values(); // reset keys
+    })->values();
 
     return response()->json([
-        'date' => $date,
+        'date'     => $date,
         'location' => $location->name,
-        'absent' => $absentEmployees,
+        'absent'   => $absentEmployees,
     ]);
 }
+
 
 
 public function activityReport()
