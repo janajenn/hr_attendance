@@ -1,5 +1,8 @@
-import React from 'react';
-import { Head, Link } from '@inertiajs/react';
+
+import React, { useState } from 'react'; // make sure useState is imported
+import { Head, Link,router } from '@inertiajs/react';
+import LogoutConfirmation from '../../Components/LogoutConfirmation';
+
 import {
     ChartBarIcon,
     CheckCircleIcon,
@@ -47,6 +50,10 @@ export default function Dashboard({
         });
     };
 
+
+    const [showLogout, setShowLogout] = useState(false);
+
+
     // Helper for status badge
     const getStatusColor = (status) => {
         switch (status) {
@@ -54,7 +61,12 @@ export default function Dashboard({
             case 'late': return 'bg-yellow-500/20 text-yellow-300';
             default: return 'bg-red-500/20 text-red-300';
         }
+
+
+
     };
+
+
 
     return (
         <>
@@ -94,12 +106,13 @@ export default function Dashboard({
                                     <span className="hidden sm:inline">Password</span>
                                 </Link>
                                 <button
-                                    onClick={(e) => { e.preventDefault(); router.post(route('logout')); }}
-                                    className="inline-flex items-center px-2 py-1.5 sm:px-3 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm font-medium text-red-300 transition"
-                                >
-                                    <ArrowRightOnRectangleIcon className="h-4 w-4 sm:mr-1.5" />
-                                    <span className="hidden sm:inline">Logout</span>
-                                </button>
+    onClick={() => setShowLogout(true)}
+    className="inline-flex items-center px-2 py-1.5 sm:px-3 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-sm font-medium text-red-300 transition"
+    aria-label="Logout"
+>
+    <ArrowRightOnRectangleIcon className="h-4 w-4 sm:mr-1.5" />
+    <span className="hidden sm:inline">Logout</span>
+</button>
                             </div>
                         </div>
                     </div>
@@ -275,6 +288,12 @@ export default function Dashboard({
                     )}
                 </main>
             </div>
+
+            <LogoutConfirmation
+    isOpen={showLogout}
+    onClose={() => setShowLogout(false)}
+    onConfirm={() => router.post(route('logout'))}
+/>
         </>
     );
 }

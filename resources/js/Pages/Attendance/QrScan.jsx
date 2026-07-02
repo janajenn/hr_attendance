@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react'; // already has useState
+import LogoutConfirmation from '@/Components/LogoutConfirmation';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { MapContainer, TileLayer, Circle, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
@@ -263,6 +264,9 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
         }
     };
 
+
+    const [showLogout, setShowLogout] = useState(false);
+
     return (
         <>
             <Head title="QR Attendance" />
@@ -288,12 +292,12 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
                                     <span className="hidden xs:inline">History</span>
                                 </Link>
                                 <button
-                                    onClick={handleLogout}
-                                    className="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-xs sm:text-sm font-medium text-red-300 transition"
-                                >
-                                    <ArrowRightOnRectangleIcon className="h-4 w-4 mr-1 sm:mr-1.5" />
-                                    <span className="hidden xs:inline">Logout</span>
-                                </button>
+    onClick={() => setShowLogout(true)}
+    className="inline-flex items-center px-2 py-1.5 sm:px-3 sm:py-1.5 bg-red-500/20 hover:bg-red-500/30 rounded-lg text-xs sm:text-sm font-medium text-red-300 transition"
+>
+    <ArrowRightOnRectangleIcon className="h-4 w-4 mr-1 sm:mr-1.5" />
+    <span className="hidden xs:inline">Logout</span>
+</button>
                             </div>
                         </div>
                     </div>
@@ -508,6 +512,12 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
                     )}
                 </main>
             </div>
+
+            <LogoutConfirmation
+    isOpen={showLogout}
+    onClose={() => setShowLogout(false)}
+    onConfirm={() => router.post(route('logout'))}
+/>
         </>
     );
 }
