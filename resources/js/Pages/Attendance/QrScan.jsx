@@ -3,7 +3,7 @@ import LogoutConfirmation from '@/Components/LogoutConfirmation';
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { MapContainer, TileLayer, Circle, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+
 import {
     ClockIcon,
     ArrowRightOnRectangleIcon,
@@ -269,7 +269,14 @@ export default function QrScan({ location, token, canTakeAttendance, locationErr
 
     return (
         <>
-            <Head title="QR Attendance" />
+            <Head title="QR Attendance">
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossOrigin=""
+    />
+</Head>
             <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 text-white">
                 <header className="bg-black/40 backdrop-blur-md border-b border-white/10 sticky top-0 z-20">
                     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
