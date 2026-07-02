@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { lazy, Suspense } from 'react';
 import { Head, Link, usePage } from '@inertiajs/react';
 import { CalendarIcon, ArrowRightIcon } from '@heroicons/react/24/outline';
-import WelcomeMap from '@/Components/WelcomeMap';
+import ErrorBoundary from '@/Components/ErrorBoundary';
+
+const WelcomeMap = lazy(() => import('@/Components/WelcomeMap'));
 
 export default function Welcome() {
     const { auth } = usePage().props;
@@ -23,12 +25,15 @@ export default function Welcome() {
     const buttonHref = auth.user ? getDashboardRoute() : route('login');
 
     return (
-        <>
+        <ErrorBoundary>
+
             <Head title="Employee Attendance System" />
 
-            {/* Map background */}
+          {/* Map background */}
             <div className="fixed inset-0 -z-10">
-                <WelcomeMap />
+                <Suspense fallback={<div className="h-full bg-gray-800/50 animate-pulse" />}>
+                    <WelcomeMap />
+                </Suspense>
             </div>
 
             <div className="relative min-h-screen flex items-center justify-center px-4 py-8 sm:px-6 lg:px-8">
@@ -85,6 +90,6 @@ export default function Welcome() {
                     </div>
                 </div>
             </div>
-        </>
+        </ErrorBoundary>
     );
 }
