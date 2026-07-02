@@ -101,15 +101,6 @@ export default function Login({ status, canResetPassword }) {
                                     />
                                     <span className="ml-2 text-sm text-gray-300">Remember me</span>
                                 </label>
-
-                                {canResetPassword && (
-                                    <Link
-                                        href={route('password.request')}
-                                        className="text-sm text-green-400 hover:text-green-300 transition"
-                                    >
-                                        Forgot password?
-                                    </Link>
-                                )}
                             </div>
 
                             <div>
